@@ -194,8 +194,8 @@ export default function InventoryTable({ components = [], searchQuery = '', onFi
         </label>
       </div>
 
-      {/* Table — overflow-x for narrow viewports */}
-      <div style={{ overflowX: 'auto', borderRadius: 4, border: `1px solid ${DS.outlineVar}` }}>
+      {/* Table — overflow-x for narrow viewports, scrollable defined window */}
+      <div style={{ overflowX: 'auto', overflowY: 'auto', maxHeight: '400px', borderRadius: 4, border: `1px solid ${DS.outlineVar}` }}>
         <table
           style={{
             width: '100%',
@@ -204,7 +204,7 @@ export default function InventoryTable({ components = [], searchQuery = '', onFi
           }}
         >
           {/* Header — label-caps: Inter 11px 700 0.05em uppercase */}
-          <thead>
+          <thead style={{ position: 'sticky', top: 0, zIndex: 10 }}>
             <tr
               style={{
                 background: DS.bg,
