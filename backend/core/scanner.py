@@ -35,6 +35,7 @@ import os
 import subprocess
 import sys
 import shutil
+from itertools import islice
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -265,10 +266,41 @@ async def run_semgrep_scan(target_path: str) -> dict:
         len(parsed.get("results", [])),
         target,
     )
+    # Capture evidence while uploaded, cloned, and container files still exist.
+    await loop.run_in_executor(None, _capture_source_snippets, parsed, target)
     return parsed
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
+
+def _capture_source_snippets(parsed: dict, target: Path) -> None:
+    """Attach bounded matched lines, restricted to the scanned target."""
+    root = target if target.is_dir() else target.parent
+    for finding in parsed.get("results", []):
+        try:
+            source = Path(finding.get("path", ""))
+            if not source.is_absolute():
+                source = source if source.exists() else root / source
+            source = source.resolve()
+            if not source.is_relative_to(root) or (target.is_file() and source != target):
+                continue
+            start = int(finding.get("start", {}).get("line", 0))
+            end = int(finding.get("end", {}).get("line", start))
+            if start < 1:
+                continue
+            end = max(start, end)
+            with source.open(encoding="utf-8", errors="replace") as stream:
+                lines = list(islice(stream, start - 1, min(end, start + 79)))
+            code = "".join(lines).rstrip("\r\n")
+            if code:
+                finding.setdefault("extra", {})["ecdat_source"] = {
+                    "code": code[:16000],
+                    "startLine": start,
+                    "truncated": end - start + 1 > 80 or len(code) > 16000,
+                }
+        except (OSError, ValueError, TypeError):
+            logger.debug("Source evidence unavailable for %s", finding.get("path"))
+
 
 def _error_payload(message: str) -> dict:
     return {

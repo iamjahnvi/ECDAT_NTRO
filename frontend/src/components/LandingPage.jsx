@@ -21,6 +21,7 @@ import {
 } from 'lucide-react'
 import JSZip from 'jszip'
 import { FALLBACK_BOM } from '../fallbackData'
+import HomeMenu from './HomeMenu'
 
 const DS = {
   bg:          '#13131b',
@@ -283,7 +284,7 @@ function DropZone({ onFileClick, onDragOver, onDragLeave, onDrop, isDragging, ic
 
 // ── Main Component ──────────────────────────────────────────────────────────
 
-export default function LandingPage({ onScanComplete }) {
+export default function LandingPage({ onScanComplete, onNavigate, onDocumentation }) {
   const [inputMode,      setInputMode]      = useState('local')
   const [remoteUrl,      setRemoteUrl]      = useState('')
   const [containerTag,   setContainerTag]   = useState('')
@@ -568,26 +569,27 @@ export default function LandingPage({ onScanComplete }) {
     <div style={{ minHeight: '100vh', background: DS.bg, fontFamily: 'Inter, sans-serif', display: 'flex', flexDirection: 'column', overflowX: 'hidden' }}>
 
       {/* ── Top Nav Bar ── */}
-      <header style={{
+      <header className="landing-header" style={{
         background: DS.surfaceLow,
         borderBottom: `1px solid ${DS.outlineVar}`,
-        padding: '0 32px',
-        height: 52,
+        padding: '8px clamp(12px, 3vw, 32px)',
+        minHeight: 52,
+        gap: 12, flexWrap: 'wrap',
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         position: 'sticky', top: 0, zIndex: 100,
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <HomeMenu onNavigate={onNavigate} />
           <Shield size={17} color={DS.primary} strokeWidth={1.8} />
           <span style={{ fontWeight: 800, fontSize: 14, letterSpacing: '0.12em', textTransform: 'uppercase', color: DS.onSurface }}>ECDAT</span>
           <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 7px', borderRadius: 9999, background: `${DS.primary}18`, color: DS.primary, border: `1px solid ${DS.primary}40`, lineHeight: '18px' }}>
             v1.1-pqc
           </span>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
-          {['SIH 2025', 'Documentation', 'NIST PQC'].map(link => (
-            <span key={link} style={{ fontSize: 13, color: DS.muted, cursor: 'pointer' }}>{link}</span>
-          ))}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: `${DS.primary}14`, border: `1px solid ${DS.primary}40`, borderRadius: 4, padding: '4px 12px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+          <button className="header-link" onClick={onDocumentation}>Documentation</button>
+          <a className="header-link" href="https://csrc.nist.gov/projects/post-quantum-cryptography" target="_blank" rel="noreferrer">NIST PQC</a>
+          <div className="landing-schema-badge" style={{ display: 'flex', alignItems: 'center', gap: 6, background: `${DS.primary}14`, border: `1px solid ${DS.primary}40`, borderRadius: 4, padding: '4px 12px' }}>
             <Cpu size={12} color={DS.primary} />
             <span style={{ fontSize: 12, fontWeight: 600, color: DS.primary }}>CycloneDX 1.6</span>
           </div>

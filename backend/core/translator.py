@@ -169,6 +169,14 @@ def transform_semgrep_to_cyclonedx(semgrep_json: dict, dependency_findings: list
                 {"name": "ecdat:risk_escalation", "value": ctx.get("escalation_reason", "")},
             ])
 
+        source = finding.get("extra", {}).get("ecdat_source")
+        if source:
+            component["properties"].extend([
+                {"name": "ecdat:source:snippet", "value": source["code"]},
+                {"name": "ecdat:source:start-line", "value": str(source["startLine"])},
+                {"name": "ecdat:source:truncated", "value": str(source["truncated"]).lower()},
+            ])
+
         components.append(component)
         logger.debug("Translated finding %s -> risk=%s", rule_id, risk_level)
 

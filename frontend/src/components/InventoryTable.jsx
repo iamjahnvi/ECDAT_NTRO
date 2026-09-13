@@ -10,6 +10,7 @@
  *  - Header cells: label-caps style (Inter 11px 700 0.05em uppercase)
  */
 import { useState, useMemo } from 'react'
+import CodeViewer from './CodeViewer'
 
 // ── DESIGN.md tokens (local copy for component isolation) ─────────────────────
 const DS = {
@@ -122,6 +123,7 @@ function filterStyle(f, active) {
 export default function InventoryTable({ components = [], searchQuery = '', onFilterChange }) {
   const [activeFilter, setActiveFilter] = useState('All')
   const [showOnlySensitive, setShowOnlySensitive] = useState(false)
+  const [selectedComponent, setSelectedComponent] = useState(null)
 
   function handleFilterChange(f) {
     setActiveFilter(f)
@@ -331,7 +333,7 @@ export default function InventoryTable({ components = [], searchQuery = '', onFi
                           cursor: 'pointer',
                           textDecoration: 'underline',
                         }}
-                        onClick={() => alert(`Inspecting ${c.name} at ${path}`)}
+                        onClick={() => setSelectedComponent(c)}
                       >
                         View Code
                       </button>
@@ -348,6 +350,7 @@ export default function InventoryTable({ components = [], searchQuery = '', onFi
       <p style={{ fontSize: 11, color: DS.muted, textAlign: 'right', marginTop: 6 }}>
         {filtered.length} / {components.length} asset{components.length !== 1 ? 's' : ''}
       </p>
+      {selectedComponent && <CodeViewer component={selectedComponent} onClose={() => setSelectedComponent(null)} />}
     </div>
   )
 }
