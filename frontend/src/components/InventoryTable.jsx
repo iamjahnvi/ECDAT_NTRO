@@ -121,6 +121,7 @@ function filterStyle(f, active) {
 
 export default function InventoryTable({ components = [], searchQuery = '', onFilterChange }) {
   const [activeFilter, setActiveFilter] = useState('All')
+  const [showOnlySensitive, setShowOnlySensitive] = useState(false)
 
   function handleFilterChange(f) {
     setActiveFilter(f)
@@ -144,8 +145,13 @@ export default function InventoryTable({ components = [], searchQuery = '', onFi
         getTargetPQC(c).toLowerCase().includes(q)
       )
     }
+
+    if (showOnlySensitive) {
+      result = result.filter(c => c.properties?.some(p => p.name === 'ecdat:sensitive_data_at_risk' && p.value === 'true'))
+    }
+
     return result
-  }, [components, activeFilter, searchQuery])
+  }, [components, activeFilter, searchQuery, showOnlySensitive])
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
@@ -169,6 +175,21 @@ export default function InventoryTable({ components = [], searchQuery = '', onFi
             {f}
           </button>
         ))}
+        
+        {/* Sensitive data filter checkbox */}
+        <label style={{
+          display: 'flex', alignItems: 'center', gap: 6,
+          fontSize: 11, fontWeight: 500, color: DS.muted,
+          cursor: 'pointer', marginLeft: 'auto'
+        }}>
+          <input
+            type="checkbox"
+            checked={showOnlySensitive}
+            onChange={e => setShowOnlySensitive(e.target.checked)}
+            style={{ accentColor: DS.error }}
+          />
+          Show Only Sensitive Data Vulnerabilities
+        </label>
       </div>
 
       {/* Table — overflow-x for narrow viewports */}
@@ -238,16 +259,31 @@ export default function InventoryTable({ components = [], searchQuery = '', onFi
                   >
                     {/* Algorithm — Inter, on-surface */}
                     <td style={{ padding: '8px 14px' }}>
-                      <span
-                        style={{
-                          fontFamily: 'Inter, sans-serif',
-                          fontSize: 13,
-                          fontWeight: 600,
-                          color: DS.onSurface,
-                        }}
-                      >
-                        {c.name || '—'}
-                      </span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span
+                          style={{
+                            fontFamily: 'Inter, sans-serif',
+                            fontSize: 13,
+                            fontWeight: 600,
+                            color: DS.onSurface,
+                          }}
+                        >
+                          {c.name || '—'}
+                        </span>
+                        {c.properties?.some(p => p.name === 'ecdat:sensitive_data_at_risk' && p.value === 'true') && (
+                          <div
+                            title={c.properties?.find(p => p.name === 'ecdat:risk_escalation')?.value || 'Sensitive data risk'}
+                            style={{
+                              padding: '2px 6px', borderRadius: 4,
+                              background: `${DS.error}22`, border: `1px solid ${DS.error}60`,
+                              color: DS.error, fontSize: 10, fontWeight: 700,
+                              cursor: 'help', whiteSpace: 'nowrap'
+                            }}
+                          >
+                            PII / Sensitive Data
+                          </div>
+                        )}
+                      </div>
                     </td>
 
                     {/* Status — pill badge */}

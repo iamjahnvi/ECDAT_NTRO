@@ -5,3 +5,5 @@ python-multipart>=0.0.9
 # Binary analysis (optional — graceful fallback to string scan if absent)
 pefile>=2023.2.7
 pyelftools>=0.31
+# SCA version comparisons
+packaging>=23.0

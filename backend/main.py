@@ -50,7 +50,8 @@ import tempfile
 import zipfile
 from pathlib import Path
 
-from fastapi import FastAPI, File, HTTPException, UploadFile, status
+import json
+from fastapi import FastAPI, File, Form, HTTPException, UploadFile, status
 from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, field_validator
@@ -71,6 +72,8 @@ from container_scanner import (
     scan_container_image,
     is_docker_available,
 )
+from sensitive_data_scanner import scan_for_sensitive_data
+from risk_engine import correlate_and_escalate
 
 # ── Logging ───────────────────────────────────────────────────────────────────
 logging.basicConfig(
@@ -107,6 +110,7 @@ app.add_middleware(
 
 class ScanRequest(BaseModel):
     target_directory: str
+    sensitive_keywords: list[str] | None = None
 
     @field_validator("target_directory")
     @classmethod
@@ -120,6 +124,7 @@ class ScanRequest(BaseModel):
 
 class ContainerTagRequest(BaseModel):
     image_tag: str
+    sensitive_keywords: list[str] | None = None
 
     @field_validator("image_tag")
     @classmethod
@@ -288,6 +293,15 @@ async def scan(request: ScanRequest) -> dict:
                 detail=semgrep_result.get("message", "Scanner error"),
             )
 
+        # ── Step 3.5: Sensitive Data Correlation ──────────────────────────────
+        keywords = request.sensitive_keywords or [
+            "password", "ssn", "credit_card", "token", "secret", "jwt", "email", "medical_record"
+        ]
+        sensitive_findings = await run_in_threadpool(scan_for_sensitive_data, str(target), keywords)
+        
+        if "results" in semgrep_result:
+            semgrep_result["results"] = correlate_and_escalate(semgrep_result["results"], sensitive_findings)
+
         # ── Step 4 (SCA): Scan third-party dependency manifests ───────────────
         dependency_findings = await run_in_threadpool(scan_dependencies, str(target))
         logger.info(
@@ -329,7 +343,7 @@ _MAX_CONTAINER_BYTES = 500 * 1024 * 1024  #  500 MB — container layers compres
     summary="Run a cryptographic scan on a compiled binary (.exe / .dll / .so / .elf / .bin / .dylib)",
     response_description="CycloneDX 1.6 BOM with binary cryptographic findings",
 )
-async def scan_binary_upload(file: UploadFile = File(...)) -> dict:
+async def scan_binary_upload(file: UploadFile = File(...), sensitive_keywords: str = Form(None)) -> dict:
     """
     Accepts a compiled binary file as multipart/form-data.
 
@@ -394,7 +408,7 @@ async def scan_binary_upload(file: UploadFile = File(...)) -> dict:
     summary="Run a full cryptographic scan on a Docker/OCI image .tar archive",
     response_description="Merged CycloneDX 1.6 BOM (AST + binary + SCA)",
 )
-async def scan_container_upload(file: UploadFile = File(...)) -> dict:
+async def scan_container_upload(file: UploadFile = File(...), sensitive_keywords: str = Form(None)) -> dict:
     """
     Accepts a Docker / OCI image ``.tar`` archive as multipart/form-data.
 
@@ -444,8 +458,15 @@ async def scan_container_upload(file: UploadFile = File(...)) -> dict:
         tar_path.write_bytes(raw)
         del raw   # free memory before the heavy pipeline runs
 
+        kw = None
+        if sensitive_keywords:
+            try:
+                kw = json.loads(sensitive_keywords)
+            except json.JSONDecodeError:
+                pass
+                
         logger.info("Container tar scan: %s (%d MB)", file.filename, tar_path.stat().st_size // (1024 * 1024))
-        result = await scan_container_tar(str(tar_path))
+        result = await scan_container_tar(str(tar_path), kw)
 
         # Build merged BOM from all three sub-results
         semgrep_bom = transform_semgrep_to_cyclonedx(
@@ -492,7 +513,7 @@ async def scan_container_by_tag(request: ContainerTagRequest) -> dict:
     { "image_tag": "docker.io/library/ubuntu:focal" }
     """
     try:
-        result = await scan_container_image(request.image_tag)
+        result = await scan_container_image(request.image_tag, request.sensitive_keywords)
     except RuntimeError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -521,7 +542,7 @@ async def scan_container_by_tag(request: ContainerTagRequest) -> dict:
     summary="Run a cryptographic scan on a browser-uploaded zip of a local folder",
     response_description="CycloneDX 1.6 BOM with cryptographic findings",
 )
-async def scan_upload(file: UploadFile = File(...)) -> dict:
+async def scan_upload(file: UploadFile = File(...), sensitive_keywords: str = Form(None)) -> dict:
     """
     Accepts a **zip file** posted as multipart/form-data.
 
@@ -582,6 +603,18 @@ async def scan_upload(file: UploadFile = File(...)) -> dict:
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=semgrep_result.get("message", "Scanner error"),
             )
+            
+        kw = ["password", "ssn", "credit_card", "token", "secret", "jwt", "email", "medical_record"]
+        if sensitive_keywords:
+            try:
+                kw = json.loads(sensitive_keywords)
+            except json.JSONDecodeError:
+                pass
+                
+        sensitive_findings = await run_in_threadpool(scan_for_sensitive_data, str(extract_dir), kw)
+        
+        if "results" in semgrep_result:
+            semgrep_result["results"] = correlate_and_escalate(semgrep_result["results"], sensitive_findings)
 
         dependency_findings = await run_in_threadpool(scan_dependencies, str(extract_dir))
         logger.info("SCA complete — %d finding(s)", len(dependency_findings))

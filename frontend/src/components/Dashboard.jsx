@@ -72,7 +72,7 @@ export default function Dashboard({ bom }) {
       </div>
 
       {/* ── Summary pills ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
         <StatPill
           label="Total Findings"
           value={summary.total_findings ?? components.length}
@@ -90,6 +90,12 @@ export default function Dashboard({ bom }) {
           value={summary.low_count ?? 0}
           color="#68d391"
           icon="✅"
+        />
+        <StatPill
+          label="Sensitive Data"
+          value={components.filter(c => c.properties?.some(p => p.name === 'ecdat:sensitive_data_at_risk' && p.value === 'true')).length}
+          color="#ffb4ab"
+          icon="🔐"
         />
       </div>
 

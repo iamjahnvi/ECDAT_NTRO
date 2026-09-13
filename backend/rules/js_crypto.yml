@@ -1,0 +1,196 @@
+rules:
+
+  # ════════════════════════════════════════════════════════════
+  #  JAVASCRIPT / TYPESCRIPT CRYPTOGRAPHIC RULES
+  #  Granular pattern matching on Node.js built-in `crypto` module,
+  #  Web Crypto API (crypto.subtle), and common third-party libs.
+  # ════════════════════════════════════════════════════════════
+
+  # ── BROKEN: MD5 hash via Node.js crypto ─────────────────────────────────────
+  - id: js-md5-hash-node
+    languages: [javascript, typescript]
+    severity: ERROR
+    pattern-either:
+      - pattern: crypto.createHash('md5')
+      - pattern: crypto.createHash("md5")
+    message: >
+      MD5 is cryptographically broken and should not be used for any security-sensitive
+      purpose. Migrate to crypto.createHash('sha256') or the Web Crypto API
+      crypto.subtle.digest('SHA-256', data).
+    metadata:
+      algorithm: MD5
+      category: weak-hash
+      cwe: CWE-327
+      owasp: A02:2021
+      mosca_x: 3
+      mosca_y: 5
+      mosca_z: 5
+
+  # ── BROKEN: SHA-1 hash via Node.js crypto ───────────────────────────────────
+  - id: js-sha1-hash-node
+    languages: [javascript, typescript]
+    severity: ERROR
+    pattern-either:
+      - pattern: crypto.createHash('sha1')
+      - pattern: crypto.createHash("sha1")
+    message: >
+      SHA-1 is cryptographically weak (vulnerable to SHAttered collision attack, 2017).
+      Migrate to crypto.createHash('sha256') or crypto.createHash('sha3-256').
+    metadata:
+      algorithm: SHA1
+      category: weak-hash
+      cwe: CWE-327
+      owasp: A02:2021
+      mosca_x: 2
+      mosca_y: 3
+      mosca_z: 10
+
+  # ── BROKEN: DES cipher via Node.js crypto ───────────────────────────────────
+  - id: js-des-cipher-node
+    languages: [javascript, typescript]
+    severity: ERROR
+    pattern-either:
+      - pattern: crypto.createCipher('des', ...)
+      - pattern: crypto.createCipher("des", ...)
+      - pattern: crypto.createCipheriv('des-cbc', ...)
+      - pattern: crypto.createCipheriv("des-cbc", ...)
+      - pattern: crypto.createCipheriv('des-ecb', ...)
+      - pattern: crypto.createCipheriv("des-ecb", ...)
+    message: >
+      DES uses a 56-bit key and has been broken since 1997.
+      Replace with 'aes-256-gcm': crypto.createCipheriv('aes-256-gcm', key, iv).
+    metadata:
+      algorithm: DES
+      category: broken-cipher
+      cwe: CWE-327
+      owasp: A02:2021
+      mosca_x: 5
+      mosca_y: 6
+      mosca_z: 5
+
+  # ── BROKEN: RC4 cipher via Node.js crypto ───────────────────────────────────
+  - id: js-rc4-cipher-node
+    languages: [javascript, typescript]
+    severity: ERROR
+    pattern-either:
+      - pattern: crypto.createCipher('rc4', ...)
+      - pattern: crypto.createCipher("rc4", ...)
+      - pattern: crypto.createCipheriv('rc4', ...)
+      - pattern: crypto.createCipheriv("rc4", ...)
+    message: >
+      RC4 is a broken stream cipher with numerous known biases and vulnerabilities.
+      Migrate to 'aes-256-gcm' (crypto.createCipheriv) or the Web Crypto API.
+    metadata:
+      algorithm: RC4
+      category: broken-cipher
+      cwe: CWE-327
+      owasp: A02:2021
+      mosca_x: 3
+      mosca_y: 4
+      mosca_z: 5
+
+  # ── BROKEN: `md5` npm package ────────────────────────────────────────────────
+  - id: js-md5-package
+    languages: [javascript, typescript]
+    severity: ERROR
+    pattern-either:
+      - pattern: require('md5')
+      - pattern: require("md5")
+      - pattern: import $X from 'md5'
+      - pattern: import $X from "md5"
+    message: >
+      The `md5` npm package uses the cryptographically broken MD5 algorithm.
+      Migrate to native crypto.createHash('sha256') or the Web Crypto API.
+    metadata:
+      algorithm: MD5
+      category: weak-hash
+      cwe: CWE-327
+      owasp: A02:2021
+      mosca_x: 3
+      mosca_y: 5
+      mosca_z: 5
+
+  # ── BROKEN: CryptoJS weak usage (MD5, DES) ───────────────────────────────────
+  - id: js-cryptojs-md5
+    languages: [javascript, typescript]
+    severity: ERROR
+    pattern: CryptoJS.MD5(...)
+    message: >
+      CryptoJS.MD5 uses the broken MD5 algorithm. Migrate to a secure hash via
+      the Web Crypto API: crypto.subtle.digest('SHA-256', buffer).
+    metadata:
+      algorithm: MD5
+      category: weak-hash
+      cwe: CWE-327
+      owasp: A02:2021
+      mosca_x: 3
+      mosca_y: 5
+      mosca_z: 5
+
+  - id: js-cryptojs-des
+    languages: [javascript, typescript]
+    severity: ERROR
+    pattern-either:
+      - pattern: CryptoJS.DES.encrypt(...)
+      - pattern: CryptoJS.DES.decrypt(...)
+      - pattern: CryptoJS.TripleDES.encrypt(...)
+      - pattern: CryptoJS.TripleDES.decrypt(...)
+    message: >
+      CryptoJS.DES and CryptoJS.TripleDES use deprecated ciphers.
+      Migrate to AES-GCM via the native Web Crypto API.
+    metadata:
+      algorithm: DES
+      category: broken-cipher
+      cwe: CWE-327
+      owasp: A02:2021
+      mosca_x: 5
+      mosca_y: 6
+      mosca_z: 5
+
+  # ── SECURE BASELINE: SHA-256/512 via Node.js crypto ─────────────────────────
+  - id: js-sha256-secure
+    languages: [javascript, typescript]
+    severity: INFO
+    pattern-either:
+      - pattern: crypto.createHash('sha256')
+      - pattern: crypto.createHash("sha256")
+      - pattern: crypto.createHash('sha384')
+      - pattern: crypto.createHash("sha384")
+      - pattern: crypto.createHash('sha512')
+      - pattern: crypto.createHash("sha512")
+    message: >
+      SHA-256/384/512 are secure cryptographic hash functions. No immediate action
+      required; these are compliant with NIST SP 800-107. Consider SHA-3 for new designs.
+    metadata:
+      algorithm: SHA256
+      category: secure-hash
+      cwe: N/A
+      owasp: N/A
+      mosca_x: 15
+      mosca_y: 2
+      mosca_z: 50
+
+  # ── SECURE BASELINE: Web Crypto API (crypto.subtle) ──────────────────────────
+  - id: js-webcrypto-secure
+    languages: [javascript, typescript]
+    severity: INFO
+    pattern-either:
+      - pattern: crypto.subtle.digest('SHA-256', ...)
+      - pattern: crypto.subtle.digest("SHA-256", ...)
+      - pattern: crypto.subtle.digest('SHA-384', ...)
+      - pattern: crypto.subtle.digest("SHA-384", ...)
+      - pattern: crypto.subtle.digest('SHA-512', ...)
+      - pattern: crypto.subtle.digest("SHA-512", ...)
+      - pattern: "crypto.subtle.encrypt({name: 'AES-GCM', ...}, ...)"
+      - pattern: 'crypto.subtle.encrypt({name: "AES-GCM", ...}, ...)'
+    message: >
+      Web Crypto API (crypto.subtle) with SHA-256+ or AES-GCM is a secure, modern
+      cryptographic implementation. This is a recommended secure baseline.
+    metadata:
+      algorithm: AES-GCM
+      category: secure-cipher
+      cwe: N/A
+      owasp: N/A
+      mosca_x: 20
+      mosca_y: 1
+      mosca_z: 50
