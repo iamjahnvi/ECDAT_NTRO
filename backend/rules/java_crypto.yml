@@ -1,0 +1,164 @@
+rules:
+
+  # ════════════════════════════════════════════════════════════
+  #  JAVA CRYPTOGRAPHIC RULES — Granular Primitive-Level Matching
+  #  Distinguishes weak/broken from secure algorithms via exact
+  #  string arguments to MessageDigest.getInstance() and Cipher.getInstance()
+  # ════════════════════════════════════════════════════════════
+
+  # ── BROKEN: MD5 digest ──────────────────────────────────────────────────────
+  - id: java-md5-digest
+    languages: [java]
+    severity: ERROR
+    patterns:
+      - pattern: MessageDigest.getInstance("MD5")
+    message: >
+      MD5 is cryptographically broken and vulnerable to collision attacks.
+      Do not use MD5 for any security-sensitive purpose.
+      Migrate to SHA-256 (MessageDigest.getInstance("SHA-256")) or SHA-3.
+    metadata:
+      algorithm: MD5
+      category: weak-hash
+      cwe: CWE-327
+      owasp: A02:2021
+      mosca_x: 3
+      mosca_y: 5
+      mosca_z: 5
+
+  # ── BROKEN: SHA-1 digest ────────────────────────────────────────────────────
+  - id: java-sha1-digest
+    languages: [java]
+    severity: ERROR
+    pattern-either:
+      - pattern: MessageDigest.getInstance("SHA-1")
+      - pattern: MessageDigest.getInstance("SHA1")
+    message: >
+      SHA-1 is cryptographically weak and deprecated by NIST. It is vulnerable
+      to collision attacks (SHAttered, 2017). Migrate to SHA-256 or SHA-3.
+    metadata:
+      algorithm: SHA1
+      category: weak-hash
+      cwe: CWE-327
+      owasp: A02:2021
+      mosca_x: 2
+      mosca_y: 3
+      mosca_z: 10
+
+  # ── BROKEN: DES cipher ──────────────────────────────────────────────────────
+  - id: java-des-cipher
+    languages: [java]
+    severity: ERROR
+    pattern-either:
+      - pattern: Cipher.getInstance("DES")
+      - pattern: Cipher.getInstance("DES/...")
+    message: >
+      DES uses a 56-bit key and has been broken since 1997 (EFF DES Cracker).
+      Replace with AES-256-GCM: Cipher.getInstance("AES/GCM/NoPadding").
+    metadata:
+      algorithm: DES
+      category: broken-cipher
+      cwe: CWE-327
+      owasp: A02:2021
+      mosca_x: 5
+      mosca_y: 6
+      mosca_z: 5
+
+  # ── INSECURE MODE: AES-ECB ──────────────────────────────────────────────────
+  - id: java-aes-ecb-cipher
+    languages: [java]
+    severity: ERROR
+    pattern-either:
+      - pattern: Cipher.getInstance("AES")
+      - pattern: Cipher.getInstance("AES/ECB/...")
+    message: >
+      AES without an explicit mode defaults to ECB (Electronic Code Book), which
+      is deterministic and leaks plaintext structure (e.g., "ECB Penguin" attack).
+      Use AES/GCM/NoPadding: Cipher.getInstance("AES/GCM/NoPadding").
+    metadata:
+      algorithm: AES-ECB
+      category: insecure-mode
+      cwe: CWE-327
+      owasp: A02:2021
+      mosca_x: 5
+      mosca_y: 5
+      mosca_z: 7
+
+  # ── QUANTUM-VULNERABLE: RSA key generation ───────────────────────────────────
+  - id: java-rsa-keygen
+    languages: [java]
+    severity: WARNING
+    pattern: KeyPairGenerator.getInstance("RSA")
+    message: >
+      RSA is quantum-vulnerable (Shor's algorithm). While classically secure at
+      >= 2048 bits, it will be broken by a CRQC. Plan migration to ML-KEM (FIPS 203)
+      or a hybrid PQC scheme.
+    metadata:
+      algorithm: RSA
+      category: quantum-vulnerable
+      cwe: CWE-327
+      owasp: A02:2021
+      mosca_x: 10
+      mosca_y: 5
+      mosca_z: 7
+
+  # ── QUANTUM-VULNERABLE: EC / ECDSA / ECDH key generation ────────────────────
+  - id: java-ec-keygen
+    languages: [java]
+    severity: WARNING
+    pattern-either:
+      - pattern: KeyPairGenerator.getInstance("EC")
+      - pattern: KeyAgreement.getInstance("ECDH")
+      - pattern: Signature.getInstance("SHA256withECDSA")
+      - pattern: Signature.getInstance("SHA384withECDSA")
+      - pattern: Signature.getInstance("SHA512withECDSA")
+    message: >
+      Elliptic Curve Cryptography (ECDSA/ECDH) is quantum-vulnerable (Shor's algorithm).
+      Migrate to ML-DSA (FIPS 204) for signatures and ML-KEM (FIPS 203) for key exchange.
+    metadata:
+      algorithm: ECDSA
+      category: quantum-vulnerable
+      cwe: CWE-327
+      owasp: A02:2021
+      mosca_x: 10
+      mosca_y: 5
+      mosca_z: 7
+
+  # ── SECURE BASELINE: SHA-256 ─────────────────────────────────────────────────
+  - id: java-sha256-secure
+    languages: [java]
+    severity: INFO
+    pattern-either:
+      - pattern: MessageDigest.getInstance("SHA-256")
+      - pattern: MessageDigest.getInstance("SHA-384")
+      - pattern: MessageDigest.getInstance("SHA-512")
+    message: >
+      SHA-256/384/512 are secure cryptographic hash functions. No immediate action
+      required; however, note that SHA-2 is quantum-weakened (Grover's algorithm
+      halves effective security). SHA-512 provides a comfortable 256-bit post-quantum
+      security level.
+    metadata:
+      algorithm: SHA256
+      category: secure-hash
+      cwe: N/A
+      owasp: N/A
+      mosca_x: 15
+      mosca_y: 2
+      mosca_z: 50
+
+  # ── SECURE BASELINE: AES-GCM ─────────────────────────────────────────────────
+  - id: java-aes-gcm-secure
+    languages: [java]
+    severity: INFO
+    pattern: Cipher.getInstance("AES/GCM/NoPadding")
+    message: >
+      AES-GCM is an authenticated encryption cipher and is quantum-resistant with
+      256-bit keys (Grover's algorithm reduces effective key length by half, leaving
+      128-bit security). No immediate migration required.
+    metadata:
+      algorithm: AES-GCM
+      category: secure-cipher
+      cwe: N/A
+      owasp: N/A
+      mosca_x: 20
+      mosca_y: 1
+      mosca_z: 50

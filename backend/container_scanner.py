@@ -161,7 +161,7 @@ def _scan_binaries_in_fs(fs_dir: Path) -> list[dict]:
 
 # ── Public API ────────────────────────────────────────────────────────────────
 
-async def scan_container_tar(tar_path: str) -> dict:
+async def scan_container_tar(tar_path: str, sensitive_keywords: list[str] | None = None) -> dict:
     """
     Extract a Docker/OCI ``.tar`` image and run the full ECDAT pipeline.
 
@@ -169,6 +169,8 @@ async def scan_container_tar(tar_path: str) -> dict:
     ----------
     tar_path : str
         Filesystem path to the container tar archive.
+    sensitive_keywords: list[str] | None
+        Keywords for sensitive data detection.
 
     Returns
     -------
@@ -179,6 +181,8 @@ async def scan_container_tar(tar_path: str) -> dict:
     from core.dependency_scanner import scan_dependencies
     from core.material_scanner import scan_materials
     from fastapi.concurrency import run_in_threadpool
+    from sensitive_data_scanner import scan_for_sensitive_data
+    from risk_engine import correlate_and_escalate
 
     empty: dict = {
         "semgrep": {"results": [], "errors": []},
@@ -206,6 +210,14 @@ async def scan_container_tar(tar_path: str) -> dict:
         if semgrep_result.get('error'):
             raise ValueError(semgrep_result.get('message', 'Container source scan failed'))
 
+        # ── Sensitive Data Correlation ────────────────────────────────────────
+        kw = sensitive_keywords or [
+            "password", "ssn", "credit_card", "token", "secret", "jwt", "email", "medical_record"
+        ]
+        sensitive_findings = await run_in_threadpool(scan_for_sensitive_data, str(fs_dir), kw)
+        if "results" in semgrep_result:
+            semgrep_result["results"] = correlate_and_escalate(semgrep_result["results"], sensitive_findings)
+
         # ── Binary scan ───────────────────────────────────────────────────────
         logger.info("Container binary scan: %s", fs_dir)
         binary_findings: list[dict] = await run_in_threadpool(
@@ -227,7 +239,7 @@ async def scan_container_tar(tar_path: str) -> dict:
         }
 
 
-async def scan_container_image(image_tag: str) -> dict:
+async def scan_container_image(image_tag: str, sensitive_keywords: list[str] | None = None) -> dict:
     """
     Pull a Docker image by tag and scan it.
 
@@ -239,6 +251,8 @@ async def scan_container_image(image_tag: str) -> dict:
     image_tag : str
         e.g. ``"nginx:latest"``, ``"redis:7.0"``,
         ``"docker.io/library/ubuntu:focal"``
+    sensitive_keywords: list[str] | None
+        Keywords for sensitive data detection.
 
     Raises
     ------
@@ -278,7 +292,7 @@ async def scan_container_image(image_tag: str) -> dict:
                 )
 
         await run_in_threadpool(_docker_save)
-        return await scan_container_tar(tar_path)
+        return await scan_container_tar(tar_path, sensitive_keywords)
 
 
 def is_docker_available() -> bool:

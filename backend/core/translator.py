@@ -161,6 +161,14 @@ def transform_semgrep_to_cyclonedx(semgrep_json: dict, dependency_findings: list
             "recommendation": recommendation,
         }
 
+        if "sensitive_data_context" in metadata:
+            ctx = metadata["sensitive_data_context"]
+            component["properties"].extend([
+                {"name": "ecdat:sensitive_data_at_risk", "value": "true"},
+                {"name": "ecdat:sensitive_data_type", "value": ctx.get("data_type", "Unknown")},
+                {"name": "ecdat:risk_escalation", "value": ctx.get("escalation_reason", "")},
+            ])
+
         source = finding.get("extra", {}).get("ecdat_source")
         if source:
             component["properties"].extend([
@@ -396,40 +404,88 @@ def merge_boms(bom_list: list[dict]) -> dict:
 # ── Internal shared helpers ───────────────────────────────────────────────────
 
 def _append_dependency_components(components: list[dict], dependency_findings: list[dict]) -> None:
-    """Shared helper: append SCA dependency findings as CycloneDX components."""
+    """Shared helper: append SCA dependency findings as CycloneDX components.
+
+    Each finding is mapped to a CycloneDX ``library`` component with:
+    - Accurate version string extracted from the manifest (not ``"N/A"``).
+    - One ``vulnerabilities`` entry per CVE ID, so the CBOM can be queried by CVE.
+    - Severity derived from the advisory database (critical/high/medium/info)
+      rather than hardcoded to "critical" for every dependency.
+    - Ecosystem and version_match exposed as named properties for frontend display.
+    """
+    # Severity passthrough map: advisory DB uses lowercase CycloneDX-compatible values
+    _SCA_SEV_TO_CDX: dict[str, str] = {
+        "critical": "critical",
+        "high":     "high",
+        "medium":   "medium",
+        "low":      "low",
+        "info":     "info",
+    }
+
     for dep in dependency_findings:
-        component = {
-            "type": "library",
-            "bom-ref": str(uuid.uuid4()),
-            "name": dep["package"],
-            "version": "N/A",
-            "description": dep["recommendation"],
+        package:    str       = dep["package"]
+        version:    str       = dep.get("version") or "unknown"
+        ecosystem:  str       = dep.get("ecosystem", "unknown")
+        file_path:  str       = dep["file"]
+        cve_ids:    list[str] = dep.get("cve_ids") or []
+        severity:   str       = _SCA_SEV_TO_CDX.get(dep.get("severity", "medium"), "medium")
+        recommendation: str   = dep["recommendation"]
+        version_match:  str   = dep.get("version_match", "unknown")
+
+        # ── Mosca risk: SCA deps with critical/high severity are CRITICAL ────
+        risk_level = "CRITICAL" if severity in ("critical", "high") else "LOW"
+
+        # ── Vulnerability entries: one per CVE, or one advisory entry if none ─
+        if cve_ids:
+            vuln_entries = [
+                {
+                    "id":          cve_id,
+                    "description": recommendation,
+                    "ratings":     [{"severity": severity, "method": "other"}],
+                    "source":      {"name": "ECDAT Local Advisory DB"},
+                }
+                for cve_id in cve_ids
+            ]
+        else:
+            # No CVE ID available — emit a single advisory-level finding
+            vuln_entries = [
+                {
+                    "id":          f"ECDAT-SCA-{package.upper().replace('-', '_')}",
+                    "description": recommendation,
+                    "ratings":     [{"severity": severity, "method": "other"}],
+                    "source":      {"name": "ECDAT Local Advisory DB"},
+                }
+            ]
+
+        component: dict = {
+            "type":        "library",
+            "bom-ref":     str(uuid.uuid4()),
+            "name":        package,
+            "version":     version,
+            "description": recommendation,
             "evidence": {
                 "occurrences": [
-                    {"location": dep["file"], "line": 1, "endLine": 1}
+                    {"location": file_path, "line": 1, "endLine": 1}
                 ]
             },
             "properties": [
-                {"name": "ecdat:category", "value": "dependency-vulnerability"},
+                {"name": "ecdat:category",      "value": "dependency-vulnerability"},
+                {"name": "ecdat:ecosystem",     "value": ecosystem},
+                {"name": "ecdat:version_match", "value": version_match},
+                {"name": "ecdat:cve_count",     "value": str(len(cve_ids))},
             ],
-            "vulnerabilities": [
-                {
-                    "id": f"VULN-{dep['package'].upper()}",
-                    "description": dep["recommendation"],
-                    "ratings": [{"severity": "critical", "method": "other"}],
-                }
-            ],
+            "vulnerabilities": vuln_entries,
             "mosca": {
                 "x_years_data_sensitivity": 0,
                 "y_years_migration_time":   0,
                 "z_years_until_crqc":       0,
                 "equation":   "N/A",
-                "risk_level": "CRITICAL",
+                "risk_level": risk_level,
             },
             "recommendation": {
-                "action":        dep["recommendation"],
+                "action":        recommendation,
                 "pqc_algorithm": "",
-                "rationale":     "Vulnerable third-party dependency.",
+                "rationale":     "Vulnerable third-party dependency detected by SCA engine.",
                 "pqc_standard":  "N/A (Classical)",
             },
         }

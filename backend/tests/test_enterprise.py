@@ -238,3 +238,36 @@ def test_cli_exit_gates_and_partial_results(tmp_path, monkeypatch):
     assert cli.main() == 1 and output.exists()
     response.json.return_value['properties'].append({'name': 'ecdat:discovery_errors', 'value': '[{"error":"denied"}]'})
     assert cli.main() == 2
+
+
+def test_merge_preserves_sca_versions_advisories_and_severity():
+    from core.translator import transform_semgrep_to_cyclonedx
+    report = transform_semgrep_to_cyclonedx({'results': []}, [{
+        'package': 'legacy-crypto', 'version': '1.2.3', 'ecosystem': 'npm', 'file': '/app/package.json',
+        'severity': 'medium', 'cve_ids': ['CVE-2020-0001'], 'recommendation': 'Upgrade package',
+    }])
+    bom = finalize_bom(report, ScanContext(data_sensitivity='public', business_criticality='low'))
+    component = bom['components'][0]
+    assert component['version'] == '1.2.3'
+    assert bom['vulnerabilities'][0]['id'] == 'CVE-2020-0001'
+    assert bom['vulnerabilities'][0]['affects'][0]['ref'] == component['bom-ref']
+    assert extension(component, 'risk')['level'] == 'MEDIUM'
+
+
+def test_merge_preserves_custom_sensitive_keywords_and_context(tmp_path, monkeypatch):
+    monkeypatch.delenv('ECDAT_API_KEY', raising=False)
+    source = tmp_path / 'app.py'
+    source.write_text('patient_identifier = "example"\nkey = generate()\n')
+    async def semgrep(_):
+        return {'results': [{'path': str(source), 'start': {'line': 2}, 'end': {'line': 2},
+                            'extra': {'severity': 'WARNING', 'metadata': {'algorithm': 'RSA'}}}]}
+    monkeypatch.setattr(main, 'run_semgrep_scan', semgrep)
+    response = TestClient(main.app).post('/scan', json={
+        'target_directory': str(tmp_path), 'sensitive_keywords': ['patient_identifier'],
+        'context': {'application': 'Medical', 'data_sensitivity': 'public', 'business_criticality': 'low',
+                    'data_lifetime_years': 0, 'migration_years': 0},
+    })
+    assert response.status_code == 200, response.text
+    risk = extension(response.json()['components'][0], 'risk')
+    assert risk['application'] == 'Medical'
+    assert risk['correlated_sensitive_data'] and risk['level'] == 'CRITICAL'

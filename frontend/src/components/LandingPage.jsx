@@ -17,7 +17,7 @@
 import { useState, useEffect, useRef } from 'react'
 import {
   Shield, Search, Zap, GitBranch, Lock, AlertTriangle, CheckCircle,
-  ArrowRight, Cpu, FolderOpen, X, Package, HardDrive, Box,
+  ArrowRight, Cpu, FolderOpen, X, Package, HardDrive, Box, ChevronDown, ChevronUp, Tag
 } from 'lucide-react'
 import JSZip from 'jszip'
 import { FALLBACK_BOM } from '../fallbackData'
@@ -301,6 +301,11 @@ export default function LandingPage({ onScanComplete, onNavigate, onDocumentatio
   const [error,          setError]          = useState(null)
   const [elapsed,        setElapsed]        = useState(0)
   const [dockerAvailable, setDockerAvailable] = useState(null) // null=checking, true, false
+  const [showAdvanced,    setShowAdvanced]    = useState(false)
+  const [sensitiveKeywords, setSensitiveKeywords] = useState([
+    'password', 'ssn', 'credit_card', 'token', 'secret', 'jwt', 'email', 'medical_record'
+  ])
+  const [keywordInput,    setKeywordInput]    = useState('')
 
   const folderInputRef = useRef(null)
   const fileInputRef   = useRef(null)
@@ -426,13 +431,16 @@ export default function LandingPage({ onScanComplete, onNavigate, onDocumentatio
     }
   }
 
-  async function postForm(url, file, fieldName = 'file') {
+  async function postForm(url, file, fieldName = 'file', keywords = []) {
     const controller = new AbortController()
     const tid = setTimeout(() => controller.abort(), SCAN_TIMEOUT_MS)
     try {
       const form = new FormData()
       form.append(fieldName, file, file.name || 'upload')
       form.append('context', JSON.stringify(scanContext))
+      if (keywords && keywords.length > 0) {
+        form.append('sensitive_keywords', JSON.stringify(keywords))
+      }
       const res = await fetch(url, { method: 'POST', headers: apiHeaders(), body: form, signal: controller.signal })
       clearTimeout(tid)
       if (!res.ok) {
@@ -465,7 +473,7 @@ export default function LandingPage({ onScanComplete, onNavigate, onDocumentatio
             throw new Error(`ZIP is too large (${formatBytes(selectedFile.size)}). Maximum is 200 MB.`)
           }
           label = selectedFile.name
-          bom   = await postForm(`${BASE}/scan/upload`, selectedFile)
+          bom   = await postForm(`${BASE}/scan/upload`, selectedFile, 'file', sensitiveKeywords)
         }
         // Folder → FileList
         else if (selectedFiles && selectedFiles.length > 0) {
@@ -483,7 +491,7 @@ export default function LandingPage({ onScanComplete, onNavigate, onDocumentatio
           const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 3 } })
           const zipFile = new File([blob], `${folderName}.zip`, { type: 'application/zip' })
           label = folderName
-          bom   = await postForm(`${BASE}/scan/upload`, zipFile)
+          bom   = await postForm(`${BASE}/scan/upload`, zipFile, 'file', sensitiveKeywords)
         } else {
           throw new Error('Please select a local folder or drop a ZIP file first.')
         }
@@ -493,7 +501,7 @@ export default function LandingPage({ onScanComplete, onNavigate, onDocumentatio
       else if (inputMode === 'remote') {
         if (!remoteUrl.trim()) throw new Error('Please enter a GitHub repository URL.')
         label = remoteUrl.trim()
-        bom   = await postJson(`${BASE}/scan`, { target_directory: remoteUrl.trim() })
+        bom   = await postJson(`${BASE}/scan`, { target_directory: remoteUrl.trim(), sensitive_keywords: sensitiveKeywords })
       }
 
       // ── BINARY FILE ───────────────────────────────────────────────────────
@@ -503,7 +511,7 @@ export default function LandingPage({ onScanComplete, onNavigate, onDocumentatio
           throw new Error(`Binary too large (${formatBytes(selectedFile.size)}). Maximum is 100 MB.`)
         }
         label = selectedFile.name
-        bom   = await postForm(`${BASE}/scan/binary`, selectedFile)
+        bom   = await postForm(`${BASE}/scan/binary`, selectedFile, 'file', sensitiveKeywords)
       }
 
       // ── CONTAINER IMAGE ───────────────────────────────────────────────────
@@ -514,11 +522,11 @@ export default function LandingPage({ onScanComplete, onNavigate, onDocumentatio
             throw new Error(`Container archive too large (${formatBytes(selectedFile.size)}). Maximum is 500 MB.`)
           }
           label = selectedFile.name
-          bom   = await postForm(`${BASE}/scan/container/upload`, selectedFile)
+          bom   = await postForm(`${BASE}/scan/container/upload`, selectedFile, 'file', sensitiveKeywords)
         } else if (containerTag.trim()) {
           // Image tag
           label = containerTag.trim()
-          bom   = await postJson(`${BASE}/scan/container`, { image_tag: containerTag.trim() })
+          bom   = await postJson(`${BASE}/scan/container`, { image_tag: containerTag.trim(), sensitive_keywords: sensitiveKeywords })
         } else {
           throw new Error('Please drop a .tar archive or enter a Docker image tag.')
         }
@@ -857,6 +865,92 @@ export default function LandingPage({ onScanComplete, onNavigate, onDocumentatio
               {error}
             </div>
           )}
+
+          {/* Advanced Options Toggle */}
+          <div style={{ marginBottom: 16 }}>
+            <button
+              onClick={() => setShowAdvanced(!showAdvanced)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 6,
+                background: 'transparent', border: 'none', color: DS.muted,
+                fontSize: 12, fontWeight: 600, cursor: 'pointer', padding: '4px 0',
+                transition: 'color 0.15s'
+              }}
+              onMouseEnter={e => e.currentTarget.style.color = DS.onSurface}
+              onMouseLeave={e => e.currentTarget.style.color = DS.muted}
+            >
+              {showAdvanced ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+              Advanced Options
+            </button>
+
+            {showAdvanced && (
+              <div style={{
+                marginTop: 10, padding: 14, borderRadius: 6,
+                background: `${DS.surfaceLow}`, border: `1px solid ${DS.outlineVar}`,
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                  <Tag size={13} color={DS.primary} />
+                  <span style={{ fontSize: 12, fontWeight: 600, color: DS.onSurface }}>Sensitive Data Keywords</span>
+                </div>
+                <p style={{ fontSize: 11, color: DS.muted, marginBottom: 12 }}>
+                  These keywords will be used by the risk correlation engine to detect when sensitive data is exposed near vulnerable cryptography.
+                </p>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 12 }}>
+                  {sensitiveKeywords.map(kw => (
+                    <div key={kw} style={{
+                      display: 'flex', alignItems: 'center', gap: 4,
+                      background: `${DS.primary}18`, border: `1px solid ${DS.primary}30`,
+                      padding: '3px 8px', borderRadius: 12, fontSize: 11, color: DS.primary
+                    }}>
+                      {kw}
+                      <button
+                        onClick={() => setSensitiveKeywords(prev => prev.filter(k => k !== kw))}
+                        style={{ background: 'none', border: 'none', color: DS.primary, padding: 0, cursor: 'pointer', display: 'flex' }}
+                      >
+                        <X size={10} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <input
+                    type="text"
+                    value={keywordInput}
+                    onChange={e => setKeywordInput(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter' && keywordInput.trim()) {
+                        setSensitiveKeywords(prev => [...new Set([...prev, keywordInput.trim().toLowerCase()])])
+                        setKeywordInput('')
+                      }
+                    }}
+                    placeholder="Add new keyword..."
+                    style={{
+                      flex: 1, background: DS.surfaceHigh, border: `1px solid ${DS.outlineVar}`,
+                      borderRadius: 4, color: DS.onSurface, fontSize: 12, padding: '6px 10px',
+                      outline: 'none', boxSizing: 'border-box'
+                    }}
+                    onFocus={e => (e.target.style.borderColor = DS.primary)}
+                    onBlur={e  => (e.target.style.borderColor = DS.outlineVar)}
+                  />
+                  <button
+                    onClick={() => {
+                      if (keywordInput.trim()) {
+                        setSensitiveKeywords(prev => [...new Set([...prev, keywordInput.trim().toLowerCase()])])
+                        setKeywordInput('')
+                      }
+                    }}
+                    style={{
+                      background: `${DS.primary}20`, border: `1px solid ${DS.primary}40`,
+                      color: DS.primary, fontSize: 12, fontWeight: 600, padding: '0 12px',
+                      borderRadius: 4, cursor: 'pointer'
+                    }}
+                  >
+                    Add
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
 
           {/* Scan Button */}
           <button

@@ -13,7 +13,11 @@ export function decodeBom(bom) {
   }
   return {
     ...extensions(bom, ['summary', 'scan_context', 'discovery_errors', 'coverage']),
-    components: (bom.components || []).map(component => extensions(component, ['mosca', 'risk', 'recommendation', 'discovery'])),
+    components: (bom.components || []).map(component => {
+      const decoded = extensions(component, ['mosca', 'risk', 'recommendation', 'discovery'])
+      if (bom.vulnerabilities) decoded.vulnerabilities = bom.vulnerabilities.filter(v => v.affects?.some(a => a.ref === component['bom-ref']))
+      return decoded
+    }),
   }
 }
 

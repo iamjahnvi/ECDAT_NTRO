@@ -217,6 +217,9 @@ async def run_semgrep_scan(target_path: str) -> dict:
     logger.info("Launching semgrep multi-language scan (shell=%s): %s", use_shell, run_arg)
 
     try:
+        env = os.environ.copy()
+        env["PYTHONUTF8"] = "1"
+        
         loop = asyncio.get_event_loop()
         result: subprocess.CompletedProcess = await loop.run_in_executor(
             None,
@@ -226,6 +229,7 @@ async def run_semgrep_scan(target_path: str) -> dict:
                 text=True,
                 timeout=SCAN_TIMEOUT_SECONDS,
                 shell=use_shell,
+                env=env,
             ),
         )
     except subprocess.TimeoutExpired:

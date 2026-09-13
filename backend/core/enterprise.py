@@ -46,6 +46,8 @@ async def discover(request: DiscoveryRequest):
                     import json
                     components = result.get('components', [])
                     for component in components:
+                        component['vulnerabilities'] = [v for v in result.get('vulnerabilities', [])
+                                                        if any(a['ref'] == component['bom-ref'] for a in v.get('affects', []))]
                         for prop in component.get('properties', []):
                             if prop['name'] in ('ecdat:discovery',):
                                 component['discovery'] = json.loads(prop['value'])

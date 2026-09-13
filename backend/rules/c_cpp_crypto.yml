@@ -1,0 +1,380 @@
+rules:
+
+  # ════════════════════════════════════════════════════════════
+  #  C / C++ CRYPTOGRAPHIC RULES — Granular Primitive-Level Matching
+  #
+  #  Covers the OpenSSL EVP API (preferred) and the legacy low-level
+  #  OpenSSL API (MD5_*, SHA1_*, DES_*, RC4_*).
+  #
+  #  Design principles
+  #  -----------------
+  #  • ERROR   — cryptographically broken (MD5, SHA-1, DES, RC4)
+  #  • WARNING — quantum-vulnerable but classically secure (RSA, ECDSA/ECDH)
+  #  • INFO    — secure baseline (AES-256-GCM, SHA-256/512); no action required
+  # ════════════════════════════════════════════════════════════
+
+  # ────────────────────────────────────────────────────────────
+  #  BROKEN: MD5 — low-level OpenSSL API
+  # ────────────────────────────────────────────────────────────
+
+  - id: c-md5-init
+    languages: [c, cpp]
+    severity: ERROR
+    pattern-either:
+      - pattern: MD5_Init(...)
+      - pattern: MD5_Update(...)
+      - pattern: MD5_Final(...)
+    message: >
+      Legacy OpenSSL MD5 API detected (MD5_Init / MD5_Update / MD5_Final).
+      MD5 is cryptographically broken and vulnerable to collision attacks
+      (Wang et al., 2004). Do not use for any security-sensitive purpose.
+      Migrate to SHA-256 via EVP_DigestInit_ex(ctx, EVP_sha256(), NULL).
+    metadata:
+      algorithm: MD5
+      category: weak-hash
+      cwe: CWE-327
+      owasp: A02:2021
+      mosca_x: 3
+      mosca_y: 5
+      mosca_z: 5
+
+  # ── BROKEN: MD5 via EVP selector ──────────────────────────────────────────
+
+  - id: c-evp-md5
+    languages: [c, cpp]
+    severity: ERROR
+    pattern: EVP_md5()
+    message: >
+      EVP_md5() selects the broken MD5 digest algorithm.
+      Replace with EVP_sha256() or EVP_sha3_256() in EVP_DigestInit_ex().
+    metadata:
+      algorithm: MD5
+      category: weak-hash
+      cwe: CWE-327
+      owasp: A02:2021
+      mosca_x: 3
+      mosca_y: 5
+      mosca_z: 5
+
+  # ────────────────────────────────────────────────────────────
+  #  BROKEN: SHA-1 — low-level OpenSSL API
+  # ────────────────────────────────────────────────────────────
+
+  - id: c-sha1-init
+    languages: [c, cpp]
+    severity: ERROR
+    pattern-either:
+      - pattern: SHA1_Init(...)
+      - pattern: SHA1_Update(...)
+      - pattern: SHA1_Final(...)
+    message: >
+      Legacy OpenSSL SHA-1 API detected (SHA1_Init / SHA1_Update / SHA1_Final).
+      SHA-1 is cryptographically weak and deprecated by NIST (SP 800-131A Rev. 2).
+      It is vulnerable to chosen-prefix collision attacks (SHAttered, 2017).
+      Migrate to SHA-256: SHA256_Init / SHA256_Update / SHA256_Final, or the
+      EVP API: EVP_DigestInit_ex(ctx, EVP_sha256(), NULL).
+    metadata:
+      algorithm: SHA1
+      category: weak-hash
+      cwe: CWE-327
+      owasp: A02:2021
+      mosca_x: 2
+      mosca_y: 3
+      mosca_z: 10
+
+  # ── BROKEN: SHA-1 via EVP selector ────────────────────────────────────────
+
+  - id: c-evp-sha1
+    languages: [c, cpp]
+    severity: ERROR
+    pattern: EVP_sha1()
+    message: >
+      EVP_sha1() selects the cryptographically weak SHA-1 digest algorithm.
+      NIST deprecated SHA-1 for most uses in 2015 (SP 800-131A Rev. 2).
+      Replace with EVP_sha256() or EVP_sha3_256().
+    metadata:
+      algorithm: SHA1
+      category: weak-hash
+      cwe: CWE-327
+      owasp: A02:2021
+      mosca_x: 2
+      mosca_y: 3
+      mosca_z: 10
+
+  # ────────────────────────────────────────────────────────────
+  #  BROKEN: DES — EVP cipher selectors
+  # ────────────────────────────────────────────────────────────
+
+  - id: c-evp-des-cbc
+    languages: [c, cpp]
+    severity: ERROR
+    pattern-either:
+      - pattern: EVP_des_cbc()
+      - pattern: EVP_des_ecb()
+      - pattern: EVP_des_cfb()
+      - pattern: EVP_des_ofb()
+    message: >
+      EVP DES cipher selector detected. DES uses a 56-bit key and has been
+      broken since 1997 (EFF DES Cracker). NIST withdrew DES in 2005.
+      Replace with EVP_aes_256_gcm() for authenticated encryption.
+    metadata:
+      algorithm: DES
+      category: broken-cipher
+      cwe: CWE-327
+      owasp: A02:2021
+      mosca_x: 5
+      mosca_y: 6
+      mosca_z: 5
+
+  # ── BROKEN: 3DES / Triple-DES ─────────────────────────────────────────────
+
+  - id: c-evp-3des
+    languages: [c, cpp]
+    severity: ERROR
+    pattern-either:
+      - pattern: EVP_des_ede3_cbc()
+      - pattern: EVP_des_ede3_ecb()
+      - pattern: EVP_des_ede3_cfb()
+      - pattern: EVP_des_ede3_ofb()
+      - pattern: EVP_des_ede_cbc()
+    message: >
+      Triple-DES (3DES) cipher selector detected. 3DES is deprecated by NIST
+      (SP 800-131A Rev. 2) due to the Sweet32 birthday attack (64-bit block size)
+      and is disallowed after 2024 for new implementations.
+      Replace with EVP_aes_256_gcm() for authenticated encryption.
+    metadata:
+      algorithm: 3DES
+      category: weak-cipher
+      cwe: CWE-327
+      owasp: A02:2021
+      mosca_x: 3
+      mosca_y: 5
+      mosca_z: 5
+
+  # ── BROKEN: DES low-level key schedule API ────────────────────────────────
+
+  - id: c-des-key-schedule
+    languages: [c, cpp]
+    severity: ERROR
+    pattern-either:
+      - pattern: DES_set_key(...)
+      - pattern: DES_set_key_checked(...)
+      - pattern: DES_set_key_unchecked(...)
+      - pattern: DES_ecb_encrypt(...)
+      - pattern: DES_cbc_encrypt(...)
+    message: >
+      Direct DES key schedule API usage detected (DES_set_key / DES_ecb_encrypt /
+      DES_cbc_encrypt). DES is broken; these functions are legacy OpenSSL APIs.
+      Replace with the EVP authenticated-encryption API using AES-256-GCM:
+        EVP_EncryptInit_ex(ctx, EVP_aes_256_gcm(), NULL, key, iv).
+    metadata:
+      algorithm: DES
+      category: broken-cipher
+      cwe: CWE-327
+      owasp: A02:2021
+      mosca_x: 5
+      mosca_y: 6
+      mosca_z: 5
+
+  # ────────────────────────────────────────────────────────────
+  #  BROKEN: RC4 — stream cipher
+  # ────────────────────────────────────────────────────────────
+
+  - id: c-rc4-usage
+    languages: [c, cpp]
+    severity: ERROR
+    pattern-either:
+      - pattern: RC4_set_key(...)
+      - pattern: RC4(...)
+      - pattern: EVP_rc4()
+    message: >
+      RC4 stream cipher detected. RC4 has severe statistical biases and is
+      completely broken (RFC 7465 prohibits RC4 in TLS). It has been removed
+      from OpenSSL 3.0 by default.
+      Migrate to EVP_aes_256_gcm() (AEAD) or EVP_chacha20_poly1305().
+    metadata:
+      algorithm: RC4
+      category: broken-cipher
+      cwe: CWE-327
+      owasp: A02:2021
+      mosca_x: 3
+      mosca_y: 4
+      mosca_z: 5
+
+  # ────────────────────────────────────────────────────────────
+  #  BROKEN: AES-ECB (insecure mode — not the algorithm itself)
+  # ────────────────────────────────────────────────────────────
+
+  - id: c-evp-aes-ecb
+    languages: [c, cpp]
+    severity: ERROR
+    pattern-either:
+      - pattern: EVP_aes_128_ecb()
+      - pattern: EVP_aes_192_ecb()
+      - pattern: EVP_aes_256_ecb()
+    message: >
+      AES in ECB (Electronic Code Book) mode detected. ECB is deterministic and
+      leaks plaintext structure — identical plaintext blocks produce identical
+      ciphertext blocks (the "ECB Penguin" attack).
+      Replace with EVP_aes_256_gcm() for authenticated encryption, or
+      EVP_aes_256_cbc() with a random IV as a minimum improvement.
+    metadata:
+      algorithm: AES-ECB
+      category: insecure-mode
+      cwe: CWE-327
+      owasp: A02:2021
+      mosca_x: 5
+      mosca_y: 5
+      mosca_z: 7
+
+  # ────────────────────────────────────────────────────────────
+  #  QUANTUM-VULNERABLE: RSA key generation
+  # ────────────────────────────────────────────────────────────
+
+  - id: c-rsa-keygen
+    languages: [c, cpp]
+    severity: WARNING
+    pattern-either:
+      - pattern: RSA_generate_key(...)
+      - pattern: RSA_generate_key_ex(...)
+    message: >
+      RSA key generation detected. RSA is quantum-vulnerable (Shor's algorithm
+      can factor RSA moduli in polynomial time on a CRQC). While classically
+      secure at >= 2048 bits, begin planning migration to ML-KEM (FIPS 203) for
+      key encapsulation or ML-DSA (FIPS 204) for signatures.
+    metadata:
+      algorithm: RSA
+      category: quantum-vulnerable
+      cwe: CWE-327
+      owasp: A02:2021
+      mosca_x: 10
+      mosca_y: 5
+      mosca_z: 7
+
+  # ────────────────────────────────────────────────────────────
+  #  QUANTUM-VULNERABLE: EC / ECDSA / ECDH operations
+  # ────────────────────────────────────────────────────────────
+
+  - id: c-ec-keygen
+    languages: [c, cpp]
+    severity: WARNING
+    pattern-either:
+      - pattern: EC_KEY_new_by_curve_name(...)
+      - pattern: EC_KEY_generate_key(...)
+      - pattern: ECDSA_sign(...)
+      - pattern: ECDSA_verify(...)
+      - pattern: ECDH_compute_key(...)
+      - pattern: EVP_PKEY_keygen(...)
+    message: >
+      Elliptic Curve Cryptography (ECDSA / ECDH) usage detected. ECC is
+      quantum-vulnerable (Shor's algorithm breaks ECDLP). Begin planning
+      migration to ML-DSA (FIPS 204) for signatures and ML-KEM (FIPS 203)
+      for key encapsulation.
+    metadata:
+      algorithm: ECDSA
+      category: quantum-vulnerable
+      cwe: CWE-327
+      owasp: A02:2021
+      mosca_x: 10
+      mosca_y: 5
+      mosca_z: 7
+
+  # ────────────────────────────────────────────────────────────
+  #  SECURE BASELINE: SHA-256 / SHA-512 — low-level API
+  # ────────────────────────────────────────────────────────────
+
+  - id: c-sha256-secure
+    languages: [c, cpp]
+    severity: INFO
+    pattern-either:
+      - pattern: SHA256_Init(...)
+      - pattern: SHA256_Update(...)
+      - pattern: SHA256_Final(...)
+      - pattern: SHA512_Init(...)
+      - pattern: SHA512_Update(...)
+      - pattern: SHA512_Final(...)
+    message: >
+      SHA-256 / SHA-512 detected — secure cryptographic hash functions.
+      No immediate action required. Note that SHA-256 provides 128-bit
+      post-quantum security (Grover's algorithm halves effective bit-strength),
+      which is acceptable. SHA-512 provides a comfortable 256-bit post-quantum
+      security level.
+    metadata:
+      algorithm: SHA256
+      category: secure-hash
+      cwe: N/A
+      owasp: N/A
+      mosca_x: 15
+      mosca_y: 2
+      mosca_z: 50
+
+  # ── SECURE BASELINE: SHA-256 / SHA-512 via EVP selectors ──────────────────
+
+  - id: c-evp-sha256-secure
+    languages: [c, cpp]
+    severity: INFO
+    pattern-either:
+      - pattern: EVP_sha256()
+      - pattern: EVP_sha384()
+      - pattern: EVP_sha512()
+      - pattern: EVP_sha3_256()
+      - pattern: EVP_sha3_512()
+    message: >
+      EVP digest selector for SHA-256 / SHA-384 / SHA-512 / SHA-3 detected.
+      These are secure, NIST-approved hash algorithms. No immediate action
+      required. SHA-3 variants are the strongest choice for new designs.
+    metadata:
+      algorithm: SHA256
+      category: secure-hash
+      cwe: N/A
+      owasp: N/A
+      mosca_x: 15
+      mosca_y: 2
+      mosca_z: 50
+
+  # ────────────────────────────────────────────────────────────
+  #  SECURE BASELINE: AES-GCM (authenticated encryption)
+  # ────────────────────────────────────────────────────────────
+
+  - id: c-evp-aes-gcm-secure
+    languages: [c, cpp]
+    severity: INFO
+    pattern-either:
+      - pattern: EVP_aes_128_gcm()
+      - pattern: EVP_aes_256_gcm()
+    message: >
+      AES-GCM (Galois/Counter Mode) detected — a secure authenticated
+      encryption scheme. AES-256-GCM provides 128-bit post-quantum security
+      (Grover's algorithm reduces a 256-bit key to ~128-bit effective strength),
+      which meets current NIST recommendations for symmetric encryption.
+      No immediate migration required.
+    metadata:
+      algorithm: AES-GCM
+      category: secure-cipher
+      cwe: N/A
+      owasp: N/A
+      mosca_x: 20
+      mosca_y: 1
+      mosca_z: 50
+
+  # ────────────────────────────────────────────────────────────
+  #  SECURE BASELINE: ChaCha20-Poly1305
+  # ────────────────────────────────────────────────────────────
+
+  - id: c-evp-chacha20-secure
+    languages: [c, cpp]
+    severity: INFO
+    pattern: EVP_chacha20_poly1305()
+    message: >
+      ChaCha20-Poly1305 AEAD detected — a modern, secure authenticated
+      encryption cipher (RFC 8439). It provides strong security and is
+      resistant to timing attacks even without hardware acceleration.
+      No migration required; this is a recommended secure baseline.
+    metadata:
+      algorithm: CHACHA20-POLY1305
+      category: secure-cipher
+      cwe: N/A
+      owasp: N/A
+      mosca_x: 20
+      mosca_y: 1
+      mosca_z: 50

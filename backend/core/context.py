@@ -67,6 +67,15 @@ def apply_context(bom: dict, context: ScanContext | None = None) -> dict:
         criticality = {"low": 0, "medium": 5, "high": 15, "critical": 25}[selected.business_criticality]
         score = min(100, (55 if classical else 40 if exposed else 20 if quantum else 0) +
                     (sensitivity + criticality if classical or quantum else 0))
+        correlated_sensitive = props.get('ecdat:sensitive_data_at_risk') == 'true'
+        if correlated_sensitive:
+            score = max(score, 70)
+        if component.get('type') == 'library':
+            severity_scores = {'critical': 85, 'high': 60, 'medium': 35, 'low': 15, 'info': 0, 'unknown': 25}
+            advisory_score = max((severity_scores.get(rating.get('severity', 'unknown'), 25)
+                                  for vulnerability in component.get('vulnerabilities', [])
+                                  for rating in vulnerability.get('ratings', [])), default=55)
+            score = min(100, advisory_score + sensitivity + criticality)
         level = "CRITICAL" if score >= 70 else "HIGH" if score >= 50 else "MEDIUM" if score >= 25 else "LOW"
         component["mosca"] = {
             "x_years_data_sensitivity": x, "y_years_migration_time": y, "z_years_until_crqc": z,
@@ -75,11 +84,13 @@ def apply_context(bom: dict, context: ScanContext | None = None) -> dict:
         component["risk"] = {
             "score": score, "level": level, "quantum_vulnerable": quantum,
             "hndl_exposure": exposed and selected.data_sensitivity in ("confidential", "restricted"),
-            "sensitive_data": selected.data_types, "data_sensitivity": selected.data_sensitivity,
+            "sensitive_data": list(dict.fromkeys(selected.data_types + ([props.get('ecdat:sensitive_data_type', 'Sensitive keyword match')] if correlated_sensitive else []))),
+            "correlated_sensitive_data": correlated_sensitive, "data_sensitivity": selected.data_sensitivity,
             "business_criticality": selected.business_criticality, "application": selected.application,
             "context_source": "user" if supplied else "default-assumptions",
             "reasons": issues + (["Classically weak cryptography"] if broken else []) +
-                       (["Data lifetime plus migration exceeds quantum horizon"] if exposed else []),
+                       (["Data lifetime plus migration exceeds quantum horizon"] if exposed else []) +
+                       ([props.get('ecdat:risk_escalation', 'Sensitive data detected near cryptographic operation')] if correlated_sensitive else []),
         }
         component["recommendation"] = contextual_recommendation(component, selected)
     components = bom.get("components", [])
