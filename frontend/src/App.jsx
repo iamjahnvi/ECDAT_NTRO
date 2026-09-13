@@ -25,6 +25,9 @@ import AlgoChart      from './components/AlgoChart'
 import CryptoHeatmap  from './components/CryptoHeatmap'
 import MoscaWidget    from './components/MoscaWidget'
 import AuthPage       from './components/AuthPage'
+import HomeMenu from './components/HomeMenu'
+import UserProfile from './components/UserProfile'
+import DocumentationPage from './components/DocumentationPage'
 import { FALLBACK_BOM } from './fallbackData'
 import { supabase, saveHistoryEntry } from './supabase'
 import './index.css'
@@ -336,6 +339,7 @@ export default function App() {
     setBom(result)
     setTargetDir(dir || DEFAULT_DIR)
     setView('dashboard')
+    setActiveTab('Dashboard')
     setInventoryFilter('All')
 
     // Persist to Supabase (summary + BOM only — no source files)
@@ -350,6 +354,13 @@ export default function App() {
     setTargetDir(target || DEFAULT_DIR)
     setInventoryFilter('All')
     setActiveTab('Dashboard')
+    setView('dashboard')
+  }
+
+  function handleNavigate(destination) {
+    setActiveTab(destination)
+    setView('dashboard')
+    setBomDrawerOpen(false)
   }
 
   // ── In-dashboard re-scan ───────────────────────────────────────────────────
@@ -459,11 +470,25 @@ export default function App() {
 
   // ── Landing view ───────────────────────────────────────────────────────────
   if (view === 'landing') {
-    return <LandingPage onScanComplete={handleScanComplete} />
+    return <LandingPage onScanComplete={handleScanComplete} onNavigate={handleNavigate}
+      onDocumentation={() => setView('documentation')} />
+  }
+
+  if (view === 'documentation') {
+    return (
+      <div style={{ minHeight: '100vh', background: DS.bg }}>
+        <header className="info-header">
+          <HomeMenu onNavigate={handleNavigate} />
+          <Shield size={18} color={DS.primary} /><strong>ECDAT</strong>
+          <button className="utility-button" onClick={() => setView('landing')}><Home size={16} /> Back to Home</button>
+        </header>
+        <main><DocumentationPage /></main>
+      </div>
+    )
   }
 
   // ── Dashboard view ─────────────────────────────────────────────────────────
-  const NAV_TABS = ['Dashboard', 'Inventory', 'History']
+  const NAV_TABS = ['Dashboard', 'Inventory', 'History', 'User Profile']
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: DS.bg, fontFamily: 'Inter, sans-serif' }}>
@@ -476,8 +501,9 @@ export default function App() {
         style={{
           background: DS.surfaceLow,
           borderBottom: `1px solid ${DS.outlineVar}`,
-          height: 44,
-          padding: '0 16px',
+          minHeight: 44,
+          padding: '4px 16px',
+          flexWrap: 'wrap',
           display: 'flex',
           alignItems: 'stretch',
           gap: 0,
@@ -713,6 +739,7 @@ export default function App() {
         )}
 
         {/* ── History Tab ── */}
+        {activeTab === 'User Profile' && <UserProfile user={user} onSignOut={handleSignOut} />}
         {activeTab === 'History' && (
           <HistoryPanel
             userId={user?.id}

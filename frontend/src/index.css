@@ -77,3 +77,48 @@ body {
   from { transform: rotate(0deg);   }
   to   { transform: rotate(360deg); }
 }
+
+/* Navigation, documentation, and account views */
+.utility-button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 8px 10px; border: 1px solid var(--outline-variant); border-radius: 6px; background: var(--surface-high); color: var(--primary); cursor: pointer; font-size: 13px; }
+.utility-button:hover { background: var(--surface-bright); }
+.utility-button:focus-visible, .header-link:focus-visible, .home-menu-panel button:focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; }
+.header-link { color: var(--on-surface-variant); font-size: 13px; background: none; border: 0; cursor: pointer; text-decoration: none; }
+.header-link:hover { color: var(--primary); }
+.home-menu { position: relative; flex-shrink: 0; }
+.home-menu-panel { position: absolute; top: calc(100% + 10px); left: 0; width: 215px; padding: 6px; border: 1px solid var(--outline-variant); border-radius: 8px; background: var(--surface-low); box-shadow: 0 12px 32px #0006; z-index: 150; }
+.home-menu-panel button { display: flex; align-items: center; gap: 12px; width: 100%; padding: 12px; border: 0; border-radius: 4px; background: none; color: var(--on-surface); text-align: left; cursor: pointer; font-size: 13px; }
+.home-menu-panel button:hover { background: var(--surface-high); color: var(--primary); }
+.info-header { display: flex; align-items: center; gap: 12px; padding: 12px 20px; border-bottom: 1px solid var(--outline-variant); background: var(--surface-low); }
+.info-header > .utility-button { margin-left: auto; }
+.info-page { width: 100%; max-width: 960px; margin: 0 auto; padding: 32px 20px; color: var(--on-surface-variant); line-height: 1.7; font-size: 14px; }
+.info-heading { display: flex; align-items: center; gap: 12px; color: var(--primary); margin-bottom: 10px; }
+.info-heading h1 { font-size: clamp(22px, 4vw, 30px); font-weight: 800; color: var(--on-surface); }
+.info-card { background: var(--surface-low); border: 1px solid var(--outline-variant); border-radius: 8px; padding: 24px; margin-top: 22px; scroll-margin-top: 20px; }
+.info-card h2 { font-size: 18px; font-weight: 700; color: var(--on-surface); margin-bottom: 12px; }
+.info-card p + p { margin-top: 12px; }
+.info-card ul, .info-card ol { padding-left: 22px; margin: 12px 0; }
+.info-card ul { list-style: disc; }
+.info-card ol { list-style: decimal; }
+.info-card li + li { margin-top: 8px; }
+.docs-contents { display: flex; flex-wrap: wrap; gap: 8px 18px; margin-top: 24px; }
+.documentation a { color: var(--primary); text-decoration: underline; text-underline-offset: 3px; }
+.info-card > a { display: flex; align-items: center; gap: 6px; margin-top: 12px; }
+.profile-details { margin: 16px 0 24px; }
+.profile-details > div { padding: 12px 0; border-bottom: 1px solid var(--outline-variant); }
+.profile-details dt { color: var(--outline); font-size: 12px; }
+.profile-details dd { overflow-wrap: anywhere; }
+.code-viewer { margin: auto; padding: 0; width: min(900px, calc(100vw - 32px)); max-height: 85vh; border: 1px solid var(--outline-variant); border-radius: 10px; background: var(--surface-low); color: var(--on-surface); }
+.code-viewer::backdrop { background: #000b; }
+.code-viewer-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 20px; border-bottom: 1px solid var(--outline-variant); }
+.code-viewer-header .info-heading { margin: 0; }
+.code-viewer-header h2 { font-size: 16px; font-weight: 700; }
+.code-viewer-body { padding: 20px; font-size: 13px; line-height: 1.7; }
+.code-location { color: var(--secondary); overflow-wrap: anywhere; font-family: 'JetBrains Mono', monospace; margin-bottom: 16px; }
+.source-code { overflow-x: auto; background: var(--surface-lowest); border: 1px solid var(--outline-variant); border-radius: 6px; padding: 12px 0; font: 12px/1.8 'JetBrains Mono', monospace; tab-size: 4; }
+.source-line { display: flex; min-width: max-content; padding-right: 16px; }
+.source-line-number { display: inline-block; min-width: 60px; padding: 0 14px; margin-right: 14px; border-right: 1px solid var(--outline-variant); color: var(--outline); text-align: right; user-select: none; }
+.code-note { margin-top: 14px; color: var(--outline); overflow-wrap: anywhere; }
+@media (max-width: 600px) {
+  .landing-header .landing-schema-badge { display: none !important; }
+  .info-card { padding: 18px; }
+}

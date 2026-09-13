@@ -65,6 +65,13 @@ export async function saveHistoryEntry(bom, target, userId) {
 
   // Strip any internal flags before persisting
   const { _offlineMode, ...cleanBom } = bom
+  // Source evidence is session-only; keep raw code out of persisted history.
+  cleanBom.components = (cleanBom.components || []).map(component => ({
+    ...component,
+    ...(component.properties && {
+      properties: component.properties.filter(property => !property.name.startsWith('ecdat:source:')),
+    }),
+  }))
   const components = cleanBom?.components || []
   const summary    = cleanBom?.summary    || {}
   const total      = summary.total_findings  ?? components.length
