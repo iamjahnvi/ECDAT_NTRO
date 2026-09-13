@@ -35,7 +35,7 @@ function getStatus(component) {
   const risk = (component.mosca?.risk_level || '').toUpperCase()
   const type = (component.type || '').toLowerCase()
   if (type === 'library') return 'Deprecated'
-  return risk === 'CRITICAL' ? 'Critical' : risk === 'LOW' ? 'Low' : 'Unknown'
+  return { CRITICAL: 'Critical', HIGH: 'High', MEDIUM: 'Medium', LOW: 'Low' }[risk] || 'Unknown'
 }
 
 function getSourcePath(component) {
@@ -64,6 +64,8 @@ function algoFamily(name = '') {
 
 // Badge config: 10% opacity semantic bg, solid text foreground
 const STATUS_CFG = {
+  High:       { bg: '#ffb7831a', color: '#ffb783' },
+  Medium:     { bg: '#c0c1ff1a', color: '#c0c1ff' },
   Critical:   { bg: '#ffb4ab1a', color: '#ffb4ab' },
   Deprecated: { bg: '#ffb7831a', color: '#ffb783' },
   Low:        { bg: '#6ee7b71a', color: '#6ee7b7' },
@@ -250,6 +252,7 @@ export default function InventoryTable({ components = [], searchQuery = '', onFi
                       >
                         {c.name || '—'}
                       </span>
+                      {c.risk?.hndl_exposure && <div style={{ color: DS.error, fontSize: 11 }}>Sensitive data: {c.risk.sensitive_data?.join(', ') || c.risk.data_sensitivity}</div>}
                     </td>
 
                     {/* Status — pill badge */}

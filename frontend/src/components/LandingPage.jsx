@@ -22,6 +22,10 @@ import {
 import JSZip from 'jszip'
 import { FALLBACK_BOM } from '../fallbackData'
 import HomeMenu from './HomeMenu'
+import ScanContextForm from './ScanContextForm'
+import { DEFAULT_CONTEXT } from '../scanContext'
+import EnterpriseDiscovery from './EnterpriseDiscovery'
+import { apiHeaders } from '../cbom'
 
 const DS = {
   bg:          '#13131b',
@@ -285,6 +289,7 @@ function DropZone({ onFileClick, onDragOver, onDragLeave, onDrop, isDragging, ic
 // ── Main Component ──────────────────────────────────────────────────────────
 
 export default function LandingPage({ onScanComplete, onNavigate, onDocumentation }) {
+  const [scanContext, setScanContext] = useState(DEFAULT_CONTEXT)
   const [inputMode,      setInputMode]      = useState('local')
   const [remoteUrl,      setRemoteUrl]      = useState('')
   const [containerTag,   setContainerTag]   = useState('')
@@ -405,8 +410,8 @@ export default function LandingPage({ onScanComplete, onNavigate, onDocumentatio
     try {
       const res = await fetch(url, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
+        headers: { 'Content-Type': 'application/json', ...apiHeaders() },
+        body: JSON.stringify({ ...body, context: scanContext }),
         signal: controller.signal,
       })
       clearTimeout(tid)
@@ -427,7 +432,8 @@ export default function LandingPage({ onScanComplete, onNavigate, onDocumentatio
     try {
       const form = new FormData()
       form.append(fieldName, file, file.name || 'upload')
-      const res = await fetch(url, { method: 'POST', body: form, signal: controller.signal })
+      form.append('context', JSON.stringify(scanContext))
+      const res = await fetch(url, { method: 'POST', headers: apiHeaders(), body: form, signal: controller.signal })
       clearTimeout(tid)
       if (!res.ok) {
         let detail = `Scan failed (HTTP ${res.status})`
@@ -624,6 +630,8 @@ export default function LandingPage({ onScanComplete, onNavigate, onDocumentatio
           <p style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: DS.muted, marginBottom: 14 }}>
             Unified Cryptographic Scanner
           </p>
+          <ScanContextForm value={scanContext} onChange={setScanContext} />
+          <EnterpriseDiscovery context={scanContext} onScanComplete={onScanComplete} />
 
           {/* 4-Mode Tab Toggle */}
           <div style={{ display: 'flex', gap: 4, marginBottom: 20, background: DS.surfaceHigh, borderRadius: 8, padding: 3 }}>

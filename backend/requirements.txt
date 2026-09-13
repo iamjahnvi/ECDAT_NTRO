@@ -5,3 +5,7 @@ python-multipart>=0.0.9
 # Binary analysis (optional — graceful fallback to string scan if absent)
 pefile>=2023.2.7
 pyelftools>=0.31
+cryptography>=44.0
+cyclonedx-python-lib[validation]>=11.12,<12
+semgrep>=1.100
+httpx>=0.28

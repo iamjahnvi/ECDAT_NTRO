@@ -118,6 +118,13 @@ body {
 .source-line { display: flex; min-width: max-content; padding-right: 16px; }
 .source-line-number { display: inline-block; min-width: 60px; padding: 0 14px; margin-right: 14px; border-right: 1px solid var(--outline-variant); color: var(--outline); text-align: right; user-select: none; }
 .code-note { margin-top: 14px; color: var(--outline); overflow-wrap: anywhere; }
+.scan-context { text-align: left; margin-bottom: 20px; padding: 12px; border: 1px solid var(--outline-variant); border-radius: 6px; font-size: 12px; }
+.scan-context summary, .enterprise-discovery summary { cursor: pointer; color: var(--primary); }
+.context-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; margin: 16px 0; text-align: left; }
+.context-grid label { display: flex; flex-direction: column; gap: 5px; color: var(--on-surface-variant); font-size: 12px; }
+.context-grid input, .context-grid select, .enterprise-discovery textarea { width: 100%; background: var(--surface-high); color: var(--on-surface); border: 1px solid var(--outline-variant); border-radius: 4px; padding: 8px; }
+.enterprise-discovery { text-align: left; margin-bottom: 24px; font-size: 12px; }
+.enterprise-discovery button { margin-top: 16px; }
 @media (max-width: 600px) {
   .landing-header .landing-schema-badge { display: none !important; }
   .info-card { padding: 18px; }

@@ -1,0 +1,18 @@
+{
+  "targets": [
+    {"kind": "repository", "target": "./dummy_target"},
+    {"kind": "tls", "target": "internal.example.com", "port": 443}
+  ],
+  "context": {
+    "application": "Payments",
+    "data_sensitivity": "restricted",
+    "data_types": ["PII", "payment records"],
+    "business_criticality": "critical",
+    "data_lifetime_years": 10,
+    "migration_years": 2,
+    "quantum_horizon_years": 7,
+    "latency_weight": 0.7,
+    "cost_weight": 0.3
+  },
+  "concurrency": 4
+}
