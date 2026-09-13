@@ -22,6 +22,7 @@ import InventoryTable from './components/InventoryTable'
 import InventoryPanel from './components/InventoryPanel'
 import HistoryPanel   from './components/HistoryPanel'
 import AlgoChart      from './components/AlgoChart'
+import CryptoHeatmap  from './components/CryptoHeatmap'
 import MoscaWidget    from './components/MoscaWidget'
 import AuthPage       from './components/AuthPage'
 import { FALLBACK_BOM } from './fallbackData'
@@ -288,6 +289,8 @@ export default function App() {
   const [activeTab,   setActiveTab]   = useState('Dashboard')
   const [searchQuery, setSearchQuery] = useState('')
   const [bomDrawerOpen, setBomDrawerOpen] = useState(false)
+  const [showAlgoChart, setShowAlgoChart] = useState(false)
+  const [showHeatmap,   setShowHeatmap]   = useState(false)
   const [inventoryFilter, setInventoryFilter] = useState('All')
 
   // ── Auth: check session on mount, subscribe to changes ─────────────────────
@@ -848,15 +851,66 @@ export default function App() {
                 )}
               </div>
 
-              {/* Algorithm Breakdown */}
+              {/* Algorithm Breakdown — collapsible */}
               <div
                 style={{
                   width: '100%', background: DS.surfaceLow,
                   border: `1px solid ${DS.outlineVar}`, borderRadius: 4,
-                  padding: 14,
+                  overflow: 'hidden',
                 }}
               >
-                <AlgoChart components={components} filterMode={inventoryFilter} />
+                <button
+                  onClick={() => setShowAlgoChart(v => !v)}
+                  style={{
+                    width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    padding: '10px 14px', background: 'none', border: 'none',
+                    cursor: 'pointer', transition: 'background 0.15s',
+                  }}
+                  onMouseEnter={e => (e.currentTarget.style.background = DS.surfaceHigh)}
+                  onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                >
+                  <span style={{ fontSize: 14, fontWeight: 600, color: DS.onSurface, display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontSize: 11, transition: 'transform 0.2s', display: 'inline-block', transform: showAlgoChart ? 'rotate(90deg)' : 'rotate(0deg)', color: DS.primary }}>▶</span>
+                    Algorithm Distribution
+                  </span>
+                  <span style={{ fontSize: 11, color: DS.muted }}>{showAlgoChart ? 'Collapse' : 'Expand'}</span>
+                </button>
+                {showAlgoChart && (
+                  <div style={{ padding: '0 14px 14px', animation: 'fade-up 0.25s ease both' }}>
+                    <AlgoChart components={components} filterMode={inventoryFilter} />
+                  </div>
+                )}
+              </div>
+
+              {/* Cryptographic Risk Heatmap — collapsible */}
+              <div
+                style={{
+                  width: '100%', background: DS.surfaceLow,
+                  border: `1px solid ${DS.outlineVar}`, borderRadius: 4,
+                  overflow: 'hidden',
+                }}
+              >
+                <button
+                  onClick={() => setShowHeatmap(v => !v)}
+                  style={{
+                    width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    padding: '10px 14px', background: 'none', border: 'none',
+                    cursor: 'pointer', transition: 'background 0.15s',
+                  }}
+                  onMouseEnter={e => (e.currentTarget.style.background = DS.surfaceHigh)}
+                  onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                >
+                  <span style={{ fontSize: 14, fontWeight: 600, color: DS.onSurface, display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontSize: 11, transition: 'transform 0.2s', display: 'inline-block', transform: showHeatmap ? 'rotate(90deg)' : 'rotate(0deg)', color: DS.primary }}>▶</span>
+                    Cryptographic Risk Heatmap
+                  </span>
+                  <span style={{ fontSize: 11, color: DS.muted }}>{showHeatmap ? 'Collapse' : 'Expand'}</span>
+                </button>
+                {showHeatmap && (
+                  <div style={{ padding: '0 14px 14px', animation: 'fade-up 0.25s ease both' }}>
+                    <CryptoHeatmap components={components} />
+                  </div>
+                )}
               </div>
 
               {/* Mosca Widget */}
