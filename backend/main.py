@@ -48,10 +48,13 @@ import subprocess
 import sys
 import tempfile
 import zipfile
+import os
+import secrets
 from pathlib import Path
 
 import json
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile, status
+from fastapi import FastAPI, File, Form, HTTPException, UploadFile, status, Request
+from fastapi.responses import JSONResponse
 from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, field_validator
@@ -66,6 +69,10 @@ from core.translator import (
     merge_boms,
 )
 from core.dependency_scanner import scan_dependencies
+from core.context import ScanContext
+from core.material_scanner import scan_materials
+from core.cbom import finalize_bom
+from core.enterprise import router as enterprise_router
 from binary_scanner import scan_binary
 from container_scanner import (
     scan_container_tar,
@@ -95,6 +102,33 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc",
 )
+app.include_router(enterprise_router)
+
+
+@app.middleware('http')
+async def api_auth(request: Request, call_next):
+    key = os.environ.get('ECDAT_API_KEY')
+    if key and request.method != 'OPTIONS' and request.url.path not in ('/health', '/health/docker'):
+        supplied = request.headers.get('authorization', '').removeprefix('Bearer ')
+        if not secrets.compare_digest(supplied, key):
+            return JSONResponse(status_code=401, content={'detail': 'Invalid API bearer token'})
+    return await call_next(request)
+
+
+def parse_context(value):
+    if not value:
+        return None
+    try:
+        return ScanContext.model_validate_json(value)
+    except ValueError as exc:
+        raise HTTPException(422, detail='Invalid scan context: ' + str(exc)) from exc
+
+
+def add_materials(bom, target):
+    result = scan_materials(target)
+    bom['components'].extend(result['components'])
+    bom['discovery_errors'] = result['errors']
+    return bom
 
 # ── CORS — allow the Vite dev server (and any origin during development) ──────
 app.add_middleware(
@@ -110,6 +144,7 @@ app.add_middleware(
 
 class ScanRequest(BaseModel):
     target_directory: str
+    context: ScanContext | None = None
     sensitive_keywords: list[str] | None = None
 
     @field_validator("target_directory")
@@ -124,6 +159,7 @@ class ScanRequest(BaseModel):
 
 class ContainerTagRequest(BaseModel):
     image_tag: str
+    context: ScanContext | None = None
     sensitive_keywords: list[str] | None = None
 
     @field_validator("image_tag")
@@ -168,21 +204,33 @@ def _clone_repo(url: str, dest: Path) -> None:
         If the clone fails for any reason (invalid URL, private repo,
         network error, git not installed, etc.).
     """
-    logger.info("Cloning remote repository: %s → %s", url, dest)
+    from urllib.parse import urlsplit
+    parsed = urlsplit(url)
+    if parsed.scheme in ('http', 'https') and (parsed.username or parsed.password):
+        raise HTTPException(400, detail='Use server Git credentials instead of credentials in repository URLs')
+    env = dict(os.environ, GIT_TERMINAL_PROMPT='0')
+    token = os.environ.get('ECDAT_GIT_TOKEN')
+    if token and parsed.scheme == 'https':
+        import base64
+        host = os.environ.get('ECDAT_GIT_HOST', 'github.com')
+        if parsed.hostname == host:
+            auth = base64.b64encode(f'x-access-token:{token}'.encode()).decode()
+            env.update(GIT_CONFIG_COUNT='1', GIT_CONFIG_KEY_0=f'http.https://{host}/.extraheader', GIT_CONFIG_VALUE_0=f'Authorization: Basic {auth}')
+    logger.info("Cloning repository into %s", dest)
     try:
         subprocess.run(
-            ["git", "clone", "--depth=1", "--single-branch", url, str(dest)],
+            ["git", "clone", "--depth=1", "--single-branch", '--', url, str(dest)],
+            env=env,
             capture_output=True,
             text=True,
             timeout=120,
             check=True,      # raises CalledProcessError on non-zero exit
         )
     except subprocess.CalledProcessError as e:
-        stderr = (e.stderr or "").strip() or (e.stdout or "").strip() or "unknown git error"
-        logger.error("git clone failed (exit %d): %s", e.returncode, stderr)
+        logger.error("git clone failed (exit %d)", e.returncode)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"git clone failed for '{url}': {stderr}",
+            detail="git clone failed. Check repository access and server Git credentials.",
         ) from e
     except FileNotFoundError:
         raise HTTPException(
@@ -298,7 +346,7 @@ async def scan(request: ScanRequest) -> dict:
             "password", "ssn", "credit_card", "token", "secret", "jwt", "email", "medical_record"
         ]
         sensitive_findings = await run_in_threadpool(scan_for_sensitive_data, str(target), keywords)
-        
+
         if "results" in semgrep_result:
             semgrep_result["results"] = correlate_and_escalate(semgrep_result["results"], sensitive_findings)
 
@@ -318,7 +366,8 @@ async def scan(request: ScanRequest) -> dict:
             bom["summary"]["critical_count"],
         )
 
-        return bom
+        bom = await run_in_threadpool(add_materials, bom, target)
+        return finalize_bom(bom, request.context)
 
     finally:
         # ── Step 6: Cleanup — always runs, even on exception ──────────────────
@@ -343,7 +392,7 @@ _MAX_CONTAINER_BYTES = 500 * 1024 * 1024  #  500 MB — container layers compres
     summary="Run a cryptographic scan on a compiled binary (.exe / .dll / .so / .elf / .bin / .dylib)",
     response_description="CycloneDX 1.6 BOM with binary cryptographic findings",
 )
-async def scan_binary_upload(file: UploadFile = File(...), sensitive_keywords: str = Form(None)) -> dict:
+async def scan_binary_upload(file: UploadFile = File(...), context: str | None = Form(None), sensitive_keywords: str | None = Form(None)) -> dict:
     """
     Accepts a compiled binary file as multipart/form-data.
 
@@ -362,6 +411,7 @@ async def scan_binary_upload(file: UploadFile = File(...), sensitive_keywords: s
     3. Scans for hardcoded crypto constants (AES S-Box, SHA/MD5 IVs, PEM headers).
     4. Normalises findings into a CycloneDX 1.6 BOM (component.type = "file").
     """
+    scan_context = parse_context(context)
     raw = await file.read()
 
     if len(raw) > _MAX_BINARY_BYTES:
@@ -393,7 +443,7 @@ async def scan_binary_upload(file: UploadFile = File(...), sensitive_keywords: s
             "Binary BOM: %d component(s), %d CRITICAL",
             len(bom["components"]), bom["summary"]["critical_count"],
         )
-        return bom
+        return finalize_bom(bom, scan_context)
 
     finally:
         try:
@@ -408,7 +458,7 @@ async def scan_binary_upload(file: UploadFile = File(...), sensitive_keywords: s
     summary="Run a full cryptographic scan on a Docker/OCI image .tar archive",
     response_description="Merged CycloneDX 1.6 BOM (AST + binary + SCA)",
 )
-async def scan_container_upload(file: UploadFile = File(...), sensitive_keywords: str = Form(None)) -> dict:
+async def scan_container_upload(file: UploadFile = File(...), context: str | None = Form(None), sensitive_keywords: str | None = Form(None)) -> dict:
     """
     Accepts a Docker / OCI image ``.tar`` archive as multipart/form-data.
 
@@ -427,6 +477,7 @@ async def scan_container_upload(file: UploadFile = File(...), sensitive_keywords
     5. Merge all results into a single CycloneDX 1.6 BOM
        (component.type = "container").
     """
+    scan_context = parse_context(context)
     raw = await file.read()
 
     if len(raw) > _MAX_CONTAINER_BYTES:
@@ -464,7 +515,7 @@ async def scan_container_upload(file: UploadFile = File(...), sensitive_keywords
                 kw = json.loads(sensitive_keywords)
             except json.JSONDecodeError:
                 pass
-                
+
         logger.info("Container tar scan: %s (%d MB)", file.filename, tar_path.stat().st_size // (1024 * 1024))
         result = await scan_container_tar(str(tar_path), kw)
 
@@ -476,6 +527,8 @@ async def scan_container_upload(file: UploadFile = File(...), sensitive_keywords
             result["binary_findings"], source_type="container"
         )
         bom = merge_boms([semgrep_bom, binary_bom])
+        bom['components'].extend(result.get('materials', {}).get('components', []))
+        bom['discovery_errors'] = result.get('materials', {}).get('errors', [])
         bom["metadata"]["component"]["type"]    = "container"
         bom["metadata"]["component"]["name"]    = file.filename or "container-image"
 
@@ -483,7 +536,7 @@ async def scan_container_upload(file: UploadFile = File(...), sensitive_keywords
             "Container BOM: %d component(s), %d CRITICAL",
             len(bom["components"]), bom["summary"]["critical_count"],
         )
-        return bom
+        return finalize_bom(bom, scan_context)
 
     finally:
         try:
@@ -527,6 +580,8 @@ async def scan_container_by_tag(request: ContainerTagRequest) -> dict:
         result["binary_findings"], source_type="container"
     )
     bom = merge_boms([semgrep_bom, binary_bom])
+    bom['components'].extend(result.get('materials', {}).get('components', []))
+    bom['discovery_errors'] = result.get('materials', {}).get('errors', [])
     bom["metadata"]["component"]["type"] = "container"
     bom["metadata"]["component"]["name"] = request.image_tag
 
@@ -534,7 +589,7 @@ async def scan_container_by_tag(request: ContainerTagRequest) -> dict:
         "Container tag BOM (%s): %d component(s), %d CRITICAL",
         request.image_tag, len(bom["components"]), bom["summary"]["critical_count"],
     )
-    return bom
+    return finalize_bom(bom, request.context)
 
 @app.post(
     "/scan/upload",
@@ -542,7 +597,7 @@ async def scan_container_by_tag(request: ContainerTagRequest) -> dict:
     summary="Run a cryptographic scan on a browser-uploaded zip of a local folder",
     response_description="CycloneDX 1.6 BOM with cryptographic findings",
 )
-async def scan_upload(file: UploadFile = File(...), sensitive_keywords: str = Form(None)) -> dict:
+async def scan_upload(file: UploadFile = File(...), context: str | None = Form(None), sensitive_keywords: str | None = Form(None)) -> dict:
     """
     Accepts a **zip file** posted as multipart/form-data.
 
@@ -558,6 +613,7 @@ async def scan_upload(file: UploadFile = File(...), sensitive_keywords: str = Fo
     - Maximum upload size: 200 MB (enforced by the frontend and server-side)
     - File must be a valid zip archive
     """
+    scan_context = parse_context(context)
     MAX_BYTES = 200 * 1024 * 1024  # 200 MB
 
     # Read the upload into memory
@@ -583,11 +639,13 @@ async def scan_upload(file: UploadFile = File(...), sensitive_keywords: str = Fo
             # Security: guard against path-traversal in zip entry names
             for member in zf.infolist():
                 member_path = extract_dir / member.filename
-                if not str(member_path.resolve()).startswith(str(extract_dir.resolve())):
+                if not member_path.resolve().is_relative_to(extract_dir.resolve()):
                     raise HTTPException(
                         status_code=status.HTTP_400_BAD_REQUEST,
                         detail="Zip contains unsafe path entries (path traversal detected).",
                     )
+            if sum(member.file_size for member in zf.infolist()) > MAX_BYTES * 5:
+                raise HTTPException(413, detail='Expanded ZIP exceeds 1 GB limit')
             await run_in_threadpool(zf.extractall, extract_dir)
 
         logger.info(
@@ -603,16 +661,16 @@ async def scan_upload(file: UploadFile = File(...), sensitive_keywords: str = Fo
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=semgrep_result.get("message", "Scanner error"),
             )
-            
+
         kw = ["password", "ssn", "credit_card", "token", "secret", "jwt", "email", "medical_record"]
         if sensitive_keywords:
             try:
                 kw = json.loads(sensitive_keywords)
             except json.JSONDecodeError:
                 pass
-                
+
         sensitive_findings = await run_in_threadpool(scan_for_sensitive_data, str(extract_dir), kw)
-        
+
         if "results" in semgrep_result:
             semgrep_result["results"] = correlate_and_escalate(semgrep_result["results"], sensitive_findings)
 
@@ -627,7 +685,8 @@ async def scan_upload(file: UploadFile = File(...), sensitive_keywords: str = Fo
             bom["summary"]["critical_count"],
         )
 
-        return bom
+        bom = await run_in_threadpool(add_materials, bom, extract_dir)
+        return finalize_bom(bom, scan_context)
 
     finally:
         try:

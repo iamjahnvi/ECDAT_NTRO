@@ -1,0 +1,6 @@
+boto3>=1.35
+azure-identity>=1.19
+azure-keyvault-keys>=4.10
+google-cloud-kms>=3.0
+hvac>=2.3
+python-pkcs11>=0.7

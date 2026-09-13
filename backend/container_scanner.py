@@ -148,7 +148,8 @@ def _scan_binaries_in_fs(fs_dir: Path) -> list[dict]:
 
         # Magic-byte detection for extension-less executables
         try:
-            header = path.read_bytes(4)
+            with path.open('rb') as stream:
+                header = stream.read(4)
         except OSError:
             continue
 
@@ -178,6 +179,7 @@ async def scan_container_tar(tar_path: str, sensitive_keywords: list[str] | None
     """
     from core.scanner import run_semgrep_scan
     from core.dependency_scanner import scan_dependencies
+    from core.material_scanner import scan_materials
     from fastapi.concurrency import run_in_threadpool
     from sensitive_data_scanner import scan_for_sensitive_data
     from risk_engine import correlate_and_escalate
@@ -196,15 +198,17 @@ async def scan_container_tar(tar_path: str, sensitive_keywords: list[str] | None
             await run_in_threadpool(_extract_oci_layers, tar_path, fs_dir)
         except Exception as exc:
             logger.error("Container extraction failed: %s", exc)
-            return empty
+            raise ValueError(f'Container extraction failed: {exc}') from exc
 
         if not fs_dir.exists():
             logger.error("Extraction produced no filesystem: %s", tar_path)
-            return empty
+            raise ValueError('Container extraction produced no filesystem')
 
         # ── AST scan (Semgrep) ────────────────────────────────────────────────
         logger.info("Container AST scan: %s", fs_dir)
         semgrep_result = await run_semgrep_scan(str(fs_dir))
+        if semgrep_result.get('error'):
+            raise ValueError(semgrep_result.get('message', 'Container source scan failed'))
 
         # ── Sensitive Data Correlation ────────────────────────────────────────
         kw = sensitive_keywords or [
@@ -228,6 +232,7 @@ async def scan_container_tar(tar_path: str, sensitive_keywords: list[str] | None
         logger.info("Container SCA: %d finding(s)", len(dependency_findings))
 
         return {
+            "materials": await run_in_threadpool(scan_materials, fs_dir),
             "semgrep": semgrep_result,
             "binary_findings": binary_findings,
             "dependency_findings": dependency_findings,

@@ -31,6 +31,7 @@ import DocumentationPage from './components/DocumentationPage'
 import { FALLBACK_BOM } from './fallbackData'
 import { supabase, saveHistoryEntry } from './supabase'
 import './index.css'
+import { decodeBom, encodeBom, apiHeaders } from './cbom'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const API_BASE       = `http://${window.location.hostname}:8000`
@@ -170,7 +171,7 @@ function CycloneDXDrawer({ bom, onClose }) {
   const isOffline = bom?._offlineMode === true
   const json = useMemo(() => {
     // Strip internal _offlineMode flag from the exported JSON
-    const { _offlineMode, ...cleanBom } = bom || {}
+    const cleanBom = encodeBom(bom)
     return JSON.stringify(cleanBom, null, 2)
   }, [bom])
 
@@ -336,6 +337,7 @@ export default function App() {
 
   // ── Called by LandingPage on successful scan ───────────────────────────────
   async function handleScanComplete(result, dir) {
+    result = decodeBom(result)
     setBom(result)
     setTargetDir(dir || DEFAULT_DIR)
     setView('dashboard')
@@ -350,7 +352,7 @@ export default function App() {
 
   // ── History: load a past scan ──────────────────────────────────────────────
   function handleLoadHistoryScan(historicBom, target) {
-    setBom(historicBom)
+    setBom(decodeBom(historicBom))
     setTargetDir(target || DEFAULT_DIR)
     setInventoryFilter('All')
     setActiveTab('Dashboard')
@@ -389,8 +391,8 @@ export default function App() {
     try {
       const res = await fetch(`${API_BASE}/scan`, {
         method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ target_directory: targetDir.trim() || DEFAULT_DIR }),
+        headers: { 'Content-Type': 'application/json', ...apiHeaders() },
+        body:    JSON.stringify({ target_directory: targetDir.trim() || DEFAULT_DIR, context: bom?.scan_context }),
         signal:  controller.signal,
       })
       if (!res.ok) {
@@ -402,7 +404,7 @@ export default function App() {
         setError(detail)
         return
       }
-      const result = await res.json()
+      const result = decodeBom(await res.json())
       setBom(result)
       setInventoryFilter('All')
 
@@ -422,13 +424,13 @@ export default function App() {
       clearTimeout(timeoutId)
       setLoading(false)
     }
-  }, [targetDir, user])
+  }, [targetDir, user, bom])
 
   // ── Export ─────────────────────────────────────────────────────────────────
   function exportJson() {
     if (!bom) return
     // Strip internal _offlineMode flag before exporting
-    const { _offlineMode, ...cleanBom } = bom
+    const cleanBom = encodeBom(bom)
     const blob = new Blob([JSON.stringify(cleanBom, null, 2)], { type: 'application/json' })
     const a = Object.assign(document.createElement('a'), {
       href: URL.createObjectURL(blob),
@@ -718,6 +720,8 @@ export default function App() {
       <main style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '12px 16px 0', gap: 12 }}>
 
         {/* Error banner */}
+        {bom?.discovery_errors?.length > 0 && <div role="status" className="info-card"><strong>Partial discovery: {bom.discovery_errors.length} issue(s)</strong>{bom.discovery_errors.map((issue, i) => <p key={i}>{issue.target}: {issue.error}</p>)}</div>}
+        {bom?.summary?.sensitive_data_count > 0 && <div className="info-card" style={{ borderColor: DS.error }}><strong>Sensitive data exposure</strong><p>{bom.summary.sensitive_data_count} assets protect sensitive data beyond the configured quantum horizon.</p></div>}
         {error && (
           <div
             style={{

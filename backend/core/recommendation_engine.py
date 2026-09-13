@@ -133,8 +133,61 @@ def get_recommendation(algorithm_name: str) -> dict:
     dict
         Recommendation record from MIGRATION_MAP, or a default record.
     """
-    upper = algorithm_name.upper()
-    for key, rec in MIGRATION_MAP.items():
+    upper = algorithm_name.upper().replace("SHA-1", "SHA1")
+    for key, rec in sorted(MIGRATION_MAP.items(), key=lambda item: -len(item[0])):
         if key in upper:
-            return rec
-    return _DEFAULT_RECOMMENDATION
+            return dict(rec)
+    return dict(_DEFAULT_RECOMMENDATION)
+
+
+# Relative planning units, not invented hardware measurements. Real budgets are
+# enforced only against user-supplied benchmark latency and monetary costs.
+CANDIDATES = {
+    "signature": [("ML-DSA-65", "NIST FIPS 204", 1, 2), ("SLH-DSA-SHA2-128s", "NIST FIPS 205", 8, 1)],
+    "key-establishment": [("ML-KEM-768", "NIST FIPS 203", 1, 1), ("X25519 + ML-KEM-768 (hybrid)", "FIPS 203 + protocol-specific hybrid", 2, 2)],
+    "encryption": [("AES-256-GCM", "NIST FIPS 197 / SP 800-38D", 1, 2), ("ChaCha20-Poly1305", "RFC 8439", 2, 1)],
+    "hash": [("SHA-256", "NIST FIPS 180-4", 1, 1), ("SHA3-256", "NIST FIPS 202", 2, 2)],
+}
+
+
+def contextual_recommendation(component, context):
+    name = component.get("name", "").upper()
+    if component.get('type') in ('library', 'device'):
+        return {'action': component.get('description', 'Review provider lifecycle and firmware support.'),
+                'pqc_algorithm': '', 'pqc_standard': 'Not algorithm-specific',
+                'rationale': 'Review the dependency or hardware provider upgrade path.', 'alternatives': []}
+    usage = context.usage
+    if usage == "auto":
+        usage = component.get("discovery", {}).get("usage", "auto")
+    if usage == "auto":
+        usage = "signature" if any(k in name for k in ("DSA", "ED25519", "ED448")) else (
+            "key-establishment" if any(k in name for k in ("RSA", "DH", "X25519", "X448", "TLS")) else (
+                "hash" if any(k in name for k in ("SHA", "MD5", "HASH")) else "encryption"))
+    benchmarks = {b.algorithm: b for b in context.benchmarks}
+    candidates = []
+    for algorithm, standard, latency, cost in CANDIDATES[usage]:
+        benchmark = benchmarks.get(algorithm)
+        candidates.append({"algorithm": algorithm, "standard": standard,
+                           "relative_latency": latency, "relative_cost": cost,
+                           "latency_ms": benchmark.latency_ms if benchmark else None,
+                           "cost_per_million": benchmark.cost_per_million if benchmark else None})
+    measured = all(c["algorithm"] in benchmarks for c in candidates)
+    max_latency = max((c["latency_ms"] if measured else c["relative_latency"]) for c in candidates) or 1
+    max_cost = max((c["cost_per_million"] if measured else c["relative_cost"]) for c in candidates) or 1
+    for candidate in candidates:
+        latency = candidate["latency_ms"] if measured else candidate["relative_latency"]
+        cost = candidate["cost_per_million"] if measured else candidate["relative_cost"]
+        candidate["weighted_score"] = round(context.latency_weight * latency / max_latency + context.cost_weight * cost / max_cost, 4)
+        candidate["within_budget"] = all(limit is None or (value is not None and value <= limit) for limit, value in (
+            (context.max_latency_ms, candidate["latency_ms"]), (context.max_cost_per_million, candidate["cost_per_million"])))
+    candidates.sort(key=lambda c: (not c["within_budget"], c["weighted_score"]))
+    chosen = candidates[0]
+    issues = component.get("discovery", {}).get("issues", [])
+    return {
+        "pqc_algorithm": chosen["algorithm"], "pqc_standard": chosen["standard"],
+        "action": f"Evaluate {chosen['algorithm']} for {usage}." + (" Remediate: " + "; ".join(issues) if issues else ""),
+        "rationale": "Ranked using supplied benchmark measurements." if measured else "Ranked using relative planning estimates; benchmark on target hardware before deployment.",
+        "usage": usage, "model": "measured" if measured else "relative-estimate",
+        "budget_satisfied": chosen["within_budget"], "alternatives": candidates,
+        "priority": component.get("risk", {}).get("level", "MEDIUM"),
+    }

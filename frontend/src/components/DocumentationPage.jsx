@@ -31,6 +31,7 @@ export default function DocumentationPage() {
       </section>
       <section id="scan-modes" className="info-card">
         <h2>Scan modes</h2>
+        <p><strong>Enterprise discovery:</strong> scan live TLS endpoints, certificate/key directories, AWS KMS, Azure Key Vault, GCP KMS, Vault transit, PKCS#11 HSMs, and private repositories. Supply one target or a JSON batch with independent application contexts. Credentials and HSM modules are configured on the backend; see backend/ENTERPRISE.md for setup and permissions.</p>
         <ul>
           <li><strong>Local Folder:</strong> select a folder or upload a ZIP, up to 200 MB. Folders are zipped in your browser before upload.</li>
           <li><strong>GitHub URL:</strong> enter a public repository URL. The backend needs Git and network access to clone it.</li>
@@ -41,6 +42,7 @@ export default function DocumentationPage() {
       </section>
       <section id="results" className="info-card">
         <h2>Understanding results</h2>
+        <p>Business context supplies sensitivity, sensitive-data categories, lifetime, migration time, quantum horizon, and business criticality. These determine risk scores and sensitive-data exposure highlights. Cost/latency weights rank migration candidates; measured budgets require supplied benchmark data. Relative estimates are explicitly labeled.</p>
         <p>The dashboard summarizes discovered assets, critical findings, and the proportion identified as PQC algorithms. Use All, Critical Risk, Asymmetric, or Symmetric/Hash filters and search by algorithm, source path, or target PQC.</p>
         <p><strong>Mosca’s inequality: X + Y &gt; Z.</strong> X is the data-sensitivity lifetime, Y is the migration time, and Z is the estimated time until a cryptographically relevant quantum computer. Findings meeting this inequality are classified as critical using the configured estimates; this is a planning model, not an exact prediction.</p>
         <p>Expand Algorithm Distribution and Cryptographic Risk Heatmap for additional views. Target PQC recommendations can include ML-KEM (FIPS 203) for key establishment and ML-DSA (FIPS 204) for signatures. Review recommendations in the context of your application.</p>
@@ -59,6 +61,7 @@ export default function DocumentationPage() {
       <section id="troubleshooting" className="info-card">
         <h2>Troubleshooting</h2>
         <ul>
+          <li><code>POST /discover</code> — batch discovery targets and business context; validated CycloneDX response with coverage and partial errors.</li>
           <li><strong>API Offline:</strong> check that the backend is running on port 8000 and reachable from your browser. A network failure can display clearly labeled offline sample data.</li>
           <li><strong>Scan timeout:</strong> try a smaller repository or upload. The browser scan timeout is five minutes.</li>
           <li><strong>Docker unavailable:</strong> start Docker on the backend server or upload a .tar export instead.</li>

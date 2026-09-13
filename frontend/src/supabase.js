@@ -38,6 +38,7 @@
  */
 
 import { createClient } from '@supabase/supabase-js'
+import { encodeBom } from './cbom'
 
 const SUPABASE_URL      = import.meta.env.VITE_SUPABASE_URL              || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY  || ''
@@ -64,7 +65,7 @@ export async function saveHistoryEntry(bom, target, userId) {
   if (!isConfigured || !userId || !bom) return { error: 'not configured' }
 
   // Strip any internal flags before persisting
-  const { _offlineMode, ...cleanBom } = bom
+  const cleanBom = encodeBom(bom, { stripSource: true })
   // Source evidence is session-only; keep raw code out of persisted history.
   cleanBom.components = (cleanBom.components || []).map(component => ({
     ...component,
@@ -73,7 +74,7 @@ export async function saveHistoryEntry(bom, target, userId) {
     }),
   }))
   const components = cleanBom?.components || []
-  const summary    = cleanBom?.summary    || {}
+  const summary    = bom?.summary    || {}
   const total      = summary.total_findings  ?? components.length
   const critical   = summary.critical_count  ??
     components.filter(c => c.mosca?.risk_level === 'CRITICAL').length

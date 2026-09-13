@@ -57,7 +57,10 @@ export default function CodeViewer({ component, onClose }) {
           )}
           {properties['semgrep:rule_id'] && <p className="code-note">Detection rule: {properties['semgrep:rule_id']}</p>}
           {component.description && <section className="info-card"><h2>Finding</h2><p>{component.description}</p></section>}
+          {component.discovery && <section className="info-card"><h2>Discovery evidence</h2><pre style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{JSON.stringify(component.discovery, null, 2)}</pre></section>}
+          {component.risk && <section className="info-card"><h2>Business risk</h2><p>{component.risk.application} · {component.risk.data_sensitivity} · Score {component.risk.score}/100</p><p>{component.risk.reasons?.join('; ')}</p></section>}
           {component.recommendation?.action && <section className="info-card"><h2>Migration recommendation</h2><p>{component.recommendation.action}</p></section>}
+          {component.recommendation?.alternatives && <section className="info-card"><h2>Cost / latency ranking</h2><p>{component.recommendation.rationale}</p>{component.recommendation.alternatives.map(candidate => <p key={candidate.algorithm}>{candidate.algorithm}: score {candidate.weighted_score}, latency {candidate.latency_ms ?? 'unmeasured'} ms, cost {candidate.cost_per_million ?? 'unmeasured'} / million; {candidate.within_budget ? 'within supplied constraints' : 'budget exceeded or unverified'}</p>)}</section>}
         </div>
       </div>
     </dialog>,
