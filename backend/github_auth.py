@@ -31,6 +31,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, Field
 
+import ntro_database
 from ntro_auth import require_ntro_employee
 
 logger = logging.getLogger("ecdat.github_auth")
@@ -47,9 +48,12 @@ STATE_TTL_SECONDS = 10 * 60  # 10 minutes
 _REPO_RE = re.compile(r"^[A-Za-z0-9_.\-]+/[A-Za-z0-9_.\-]+$")
 _REF_RE = re.compile(r"^[A-Za-z0-9_./\-]{1,256}$")
 
-# ── In-memory server-side stores (no persistence, no client exposure) ────────
+# ── In-memory server-side stores ─────────────────────────────────────────────
+# OAuth `state` values are short-lived CSRF nonces (10 min, single-use); they
+# only protect an in-flight authorization redirect, so memory is sufficient.
+# GitHub AUTHORIZATIONS are persisted per-employee in the NTRO database
+# (ntro_database) and survive backend restarts.
 _states: dict[str, dict] = {}           # state -> {ntro_id, exp}
-_authorizations: dict[str, dict] = {}   # ntro employee_id -> {access_token,...}
 
 
 def github_config() -> dict:
@@ -86,24 +90,29 @@ def consume_state(state: str) -> str | None:
     return entry["ntro_id"]
 
 
-# ── Token vault (server-side only) ───────────────────────────────────────────
+# ── Token vault (database-backed, server-side only) ──────────────────────────
+# Same function names/signatures as before, so /scan/github (main.py) and
+# existing tests are unaffected. One row per employee (UNIQUE employee_id):
+# reconnecting cleanly replaces the previous authorization.
 
 def save_authorization(ntro_id: str, access_token: str, scope: str, github_user: dict) -> None:
-    _authorizations[ntro_id] = {
-        "access_token": access_token,
-        "scope": scope,
-        "github_user": {"login": github_user.get("login"), "id": github_user.get("id"),
-                        "type": github_user.get("type")},
-        "obtained_at": time.time(),
-    }
+    ntro_database.save_github_auth(ntro_id, access_token, scope, github_user)
 
 
 def get_authorization(ntro_id: str) -> dict | None:
-    return _authorizations.get(ntro_id)
+    record = ntro_database.get_github_auth(ntro_id)
+    if record is None:
+        return None
+    return {
+        "access_token": record["access_token"],
+        "scope": record["scope"],
+        "github_user": record["github_user"],
+        "connected_at": record["connected_at"],
+    }
 
 
 def clear_authorization(ntro_id: str) -> None:
-    _authorizations.pop(ntro_id, None)
+    ntro_database.delete_github_auth(ntro_id)
 
 
 def _auth_headers(access_token: str) -> dict:
@@ -115,13 +124,18 @@ def _auth_headers(access_token: str) -> dict:
 
 def normalize_repo(item: dict) -> dict:
     full_name = item.get("full_name", "")
+    owner = item.get("owner") or {}
     return {
         "full_name": full_name,
         "name": item.get("name", ""),
-        "owner": (item.get("owner") or {}).get("login", ""),
+        "owner": owner.get("login", ""),
         "private": bool(item.get("private", False)),
         "default_branch": item.get("default_branch", "main"),
         "html_url": item.get("html_url", ""),
+        # Safe public metadata for the repository cards (never secrets).
+        "description": item.get("description") or "",
+        "updated_at": item.get("pushed_at") or item.get("updated_at") or "",
+        "avatar_url": owner.get("avatar_url", ""),
     }
 
 

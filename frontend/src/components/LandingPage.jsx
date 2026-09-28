@@ -291,7 +291,7 @@ function DropZone({ onFileClick, onDragOver, onDragLeave, onDrop, isDragging, ic
 
 // ── Main Component ──────────────────────────────────────────────────────────
 
-export default function LandingPage({ onScanComplete, onNavigate, onDocumentation }) {
+export default function LandingPage({ onScanComplete, onNavigate, onDocumentation, ecdatAccount }) {
   const [scanContext, setScanContext] = useState(DEFAULT_CONTEXT)
   const [inputMode,      setInputMode]      = useState('local')
   const [remoteUrl,      setRemoteUrl]      = useState('')
@@ -670,6 +670,7 @@ export default function LandingPage({ onScanComplete, onNavigate, onDocumentatio
                 apiBase={BASE}
                 ntroToken={ntroToken}
                 ntroEmployee={ntroEmployee}
+                ecdatAccount={ecdatAccount}
                 scanContext={scanContext}
                 sensitiveKeywords={sensitiveKeywords}
                 onScanComplete={onScanComplete}

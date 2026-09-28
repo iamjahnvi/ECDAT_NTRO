@@ -7,6 +7,11 @@ ENV/
 env.bak/
 venv.bak/
 
+# Local prototype databases (contain demo records + encrypted tokens — never commit)
+backend/data/ntro.db
+backend/*.db
+*.db
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

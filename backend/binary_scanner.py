@@ -349,3 +349,5 @@ def scan_binary(file_path: str) -> list[dict]:
         len(findings), path.name, is_pe, is_elf,
     )
     return findings
+
+

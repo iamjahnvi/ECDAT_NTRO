@@ -57,3 +57,15 @@ export function provenanceFromBom(bom) {
 export function isGithubBom(bom) {
   return provenanceFromBom(bom) !== null
 }
+
+// Clean UI state model (§8): derive the whole NTRO/GitHub/repo/scan state
+// from backend answers + selection, instead of scattered booleans.
+export function resolveFlowState({ ntroToken, githubConnected, repos, selected, scanStatus }) {
+  const ntro = ntroToken ? 'authenticated' : 'not-authenticated'
+  const github = !ntroToken ? 'not-connected' : (githubConnected ? 'connected' : 'not-connected')
+  const list = Array.isArray(repos) ? repos : []
+  const repository = list.some(r => r.full_name === selected) ? 'selected' : 'none-selected'
+  const scan = ['idle', 'scanning', 'completed', 'failed'].includes(scanStatus) ? scanStatus : 'idle'
+  const step = ntro === 'not-authenticated' ? 2 : github === 'not-connected' ? 3 : repository === 'none-selected' ? 4 : 5
+  return { ntro, github, repository, scan, step }
+}

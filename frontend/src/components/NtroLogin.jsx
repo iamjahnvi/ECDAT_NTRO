@@ -64,7 +64,7 @@ export default function NtroLogin({ apiBase, onLogin }) {
     <form onSubmit={handleSubmit}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
         <Shield size={15} color={DS.primary} />
-        <span style={{ fontSize: 13, fontWeight: 700, color: DS.onSurface }}>NTRO Secure Access</span>
+        <span style={{ fontSize: 13, fontWeight: 700, color: DS.onSurface }}>NTRO Employee Authentication</span>
         <span style={{
           fontSize: 10, fontWeight: 700, padding: '1px 7px', borderRadius: 9999,
           background: `${DS.secondary}18`, color: DS.secondary,
