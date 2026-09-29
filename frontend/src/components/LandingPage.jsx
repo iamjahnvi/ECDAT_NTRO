@@ -16,7 +16,7 @@
  */
 import { useState, useEffect, useRef } from 'react'
 import {
-  Shield, Search, Zap, GitBranch, Lock, AlertTriangle, CheckCircle,
+  Shield, Search, Zap, GitBranch, AlertTriangle, CheckCircle,
   ArrowRight, Cpu, FolderOpen, X, Package, HardDrive, Box, ChevronDown, ChevronUp, Tag
 } from 'lucide-react'
 import JSZip from 'jszip'
@@ -25,9 +25,6 @@ import HomeMenu from './HomeMenu'
 import ScanContextForm from './ScanContextForm'
 import { DEFAULT_CONTEXT } from '../scanContext'
 import EnterpriseDiscovery from './EnterpriseDiscovery'
-import NtroLogin from './NtroLogin'
-import GithubConnect from './GithubConnect'
-import { NTRO_TOKEN_KEY } from '../ntroGithub'
 import { apiHeaders } from '../cbom'
 
 const DS = {
@@ -291,7 +288,7 @@ function DropZone({ onFileClick, onDragOver, onDragLeave, onDrop, isDragging, ic
 
 // ── Main Component ──────────────────────────────────────────────────────────
 
-export default function LandingPage({ onScanComplete, onNavigate, onDocumentation, ecdatAccount }) {
+export default function LandingPage({ onScanComplete, onNavigate, onDocumentation }) {
   const [scanContext, setScanContext] = useState(DEFAULT_CONTEXT)
   const [inputMode,      setInputMode]      = useState('local')
   const [remoteUrl,      setRemoteUrl]      = useState('')
@@ -305,8 +302,6 @@ export default function LandingPage({ onScanComplete, onNavigate, onDocumentatio
   const [elapsed,        setElapsed]        = useState(0)
   const [dockerAvailable, setDockerAvailable] = useState(null) // null=checking, true, false
   const [showAdvanced,    setShowAdvanced]    = useState(false)
-  const [ntroToken,       setNtroToken]       = useState(() => sessionStorage.getItem(NTRO_TOKEN_KEY))
-  const [ntroEmployee,    setNtroEmployee]    = useState(null)
   const [sensitiveKeywords, setSensitiveKeywords] = useState([
     'password', 'ssn', 'credit_card', 'token', 'secret', 'jwt', 'email', 'medical_record'
   ])
@@ -338,18 +333,6 @@ export default function LandingPage({ onScanComplete, onNavigate, onDocumentatio
   }, [loading])
 
   const activeMode = MODES.find(m => m.id === inputMode) || MODES[0]
-
-  function handleNtroLogin(token, employee) {
-    sessionStorage.setItem(NTRO_TOKEN_KEY, token)
-    setNtroToken(token)
-    setNtroEmployee(employee)
-  }
-
-  function handleNtroLogout() {
-    sessionStorage.removeItem(NTRO_TOKEN_KEY)
-    setNtroToken(null)
-    setNtroEmployee(null)
-  }
 
   // ── Mode switching ────────────────────────────────────────────────────────
   function switchMode(id) {
@@ -657,27 +640,6 @@ export default function LandingPage({ onScanComplete, onNavigate, onDocumentatio
           </p>
           <ScanContextForm value={scanContext} onChange={setScanContext} />
           <EnterpriseDiscovery context={scanContext} onScanComplete={onScanComplete} />
-
-          {/* ── Source Repository: NTRO prototype + REAL GitHub authorization ── */}
-          <div style={{ marginBottom: 20, padding: 16, borderRadius: 8, background: 'rgba(76,215,246,0.04)', border: `1px solid ${activeMode.border}` }}>
-            <p style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: DS.muted, margin: '0 0 12px' }}>
-              Source Repository — Private GitHub
-            </p>
-            {!ntroToken ? (
-              <NtroLogin apiBase={BASE} onLogin={handleNtroLogin} />
-            ) : (
-              <GithubConnect
-                apiBase={BASE}
-                ntroToken={ntroToken}
-                ntroEmployee={ntroEmployee}
-                ecdatAccount={ecdatAccount}
-                scanContext={scanContext}
-                sensitiveKeywords={sensitiveKeywords}
-                onScanComplete={onScanComplete}
-                onNtroLogout={handleNtroLogout}
-              />
-            )}
-          </div>
 
           {/* 4-Mode Tab Toggle */}
           <div style={{ display: 'flex', gap: 4, marginBottom: 20, background: DS.surfaceHigh, borderRadius: 8, padding: 3 }}>

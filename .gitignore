@@ -7,8 +7,7 @@ ENV/
 env.bak/
 venv.bak/
 
-# Local prototype databases (contain demo records + encrypted tokens — never commit)
-backend/data/ntro.db
+# Local databases (never commit)
 backend/*.db
 *.db
 

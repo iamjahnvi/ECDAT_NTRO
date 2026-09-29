@@ -473,7 +473,6 @@ export default function App() {
   // ── Landing view ───────────────────────────────────────────────────────────
   if (view === 'landing') {
     return <LandingPage onScanComplete={handleScanComplete} onNavigate={handleNavigate}
-      ecdatAccount={user?.email || ''}
       onDocumentation={() => setView('documentation')} />
   }
 
