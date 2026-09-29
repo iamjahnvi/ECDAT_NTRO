@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- ECDAT V1 — "Aegis Node" (recommended) -->
+  <!-- bg: near-black navy, border: enterprise outline -->
+  <rect x="1" y="1" width="62" height="62" rx="14" fill="#0D0D15" stroke="#464554" stroke-width="1.5"/>
+  <!-- shield: precise geometric protection -->
+  <path d="M32 9 L49 16 V31 C49 42.5 41.5 49.5 32 54 C22.5 49.5 15 42.5 15 31 V16 Z"
+        fill="none" stroke="#C0C1FF" stroke-width="4.25"
+        stroke-linejoin="round" stroke-linecap="round"/>
+  <!-- key / circuit spine -->
+  <line x1="32" y1="25" x2="32" y2="39" stroke="#E4E1ED" stroke-width="3.25" stroke-linecap="round"/>
+  <!-- top anchor node -->
+  <circle cx="32" cy="21" r="3.4" fill="#E4E1ED"/>
+  <!-- circuit arms (cryptographic analysis) -->
+  <line x1="32" y1="29" x2="26.5" y2="29" stroke="#4CD7F6" stroke-width="2.25" stroke-linecap="round"/>
+  <circle cx="25" cy="29" r="1.9" fill="#4CD7F6"/>
+  <line x1="32" y1="34.5" x2="37.5" y2="34.5" stroke="#4CD7F6" stroke-width="2.25" stroke-linecap="round"/>
+  <circle cx="39" cy="34.5" r="1.9" fill="#4CD7F6"/>
+  <!-- signal / root-of-trust accent (status-dot green) -->
+  <circle cx="32" cy="41.5" r="3.2" fill="#68D391" stroke="#0D0D15" stroke-width="1.5"/>
+</svg>

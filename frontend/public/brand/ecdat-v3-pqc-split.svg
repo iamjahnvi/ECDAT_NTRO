@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- ECDAT V3 — "PQC Split" : classical -> post-quantum halves -->
+  <rect x="1" y="1" width="62" height="62" rx="14" fill="#0D0D15" stroke="#464554" stroke-width="1.5"/>
+  <!-- left half (lavender / legacy) -->
+  <path d="M29.5 10.5 L17 15.5 V31 C17 41 22.5 47.5 29.5 51.5"
+        fill="none" stroke="#C0C1FF" stroke-width="4.25"
+        stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- right half (cool-white / PQC future) -->
+  <path d="M34.5 10.5 L47 15.5 V31 C47 41 41.5 47.5 34.5 51.5"
+        fill="none" stroke="#E4E1ED" stroke-width="4.25"
+        stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- central quantum diamond -->
+  <rect x="27" y="24" width="10" height="10" rx="1.5" transform="rotate(45 32 29)" fill="#E4E1ED"/>
+  <rect x="29.2" y="26.2" width="5.6" height="5.6" rx="1" transform="rotate(45 32 29)" fill="#4CD7F6"/>
+  <!-- vertical lattice -->
+  <line x1="32" y1="36" x2="32" y2="39.5" stroke="#464554" stroke-width="2.5" stroke-linecap="round"/>
+  <!-- signal dot -->
+  <circle cx="32" cy="42.5" r="3" fill="#68D391" stroke="#0D0D15" stroke-width="1.25"/>
+</svg>

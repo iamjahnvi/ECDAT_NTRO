@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- ECDAT V4 — "Node Constellation" : shield drawn as quantum network -->
+  <rect x="1" y="1" width="62" height="62" rx="14" fill="#0D0D15" stroke="#464554" stroke-width="1.5"/>
+  <!-- constellation edges (muted indigo) -->
+  <path d="M32 11 L46 16.5 V31 C46 40.5 39.5 46.5 32 50.5 C24.5 46.5 18 40.5 18 31 V16.5 Z"
+        fill="none" stroke="#7A7BB8" stroke-width="2"
+        stroke-linejoin="round"/>
+  <!-- perimeter nodes (shield from nodes) -->
+  <circle cx="32" cy="11" r="3" fill="#C0C1FF"/>
+  <circle cx="46" cy="16.5" r="3" fill="#C0C1FF"/>
+  <circle cx="18" cy="16.5" r="3" fill="#C0C1FF"/>
+  <circle cx="46" cy="31" r="2.7" fill="#C0C1FF"/>
+  <circle cx="18" cy="31" r="2.7" fill="#C0C1FF"/>
+  <circle cx="32" cy="50.5" r="2.7" fill="#464554" stroke="#C0C1FF" stroke-width="1"/>
+  <!-- central encrypted-key core -->
+  <line x1="32" y1="22" x2="32" y2="37" stroke="#E4E1ED" stroke-width="3.25" stroke-linecap="round"/>
+  <rect x="27.5" y="23.5" width="9" height="9" rx="1.5" transform="rotate(45 32 28)" fill="#E4E1ED"/>
+  <circle cx="32" cy="28" r="1.6" fill="#0D0D15"/>
+  <line x1="32" y1="31" x2="37" y2="31" stroke="#4CD7F6" stroke-width="2" stroke-linecap="round"/>
+  <!-- signal accent -->
+  <circle cx="32" cy="39.5" r="2.9" fill="#68D391" stroke="#0D0D15" stroke-width="1.25"/>
+</svg>

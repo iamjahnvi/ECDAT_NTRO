@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>ECDAT — Brand Mark Preview</title>
+<style>
+  :root {
+    --bg:#13131b; --low:#1b1b23; --lowest:#0d0d15; --high:#292932;
+    --primary:#c0c1ff; --secondary:#4cd7f6; --green:#68d391;
+    --text:#e4e1ed; --variant:#c7c4d7; --muted:#908fa0; --line:#464554;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--text);font-family:Inter,system-ui,sans-serif;min-height:100vh}
+  header.mock{background:var(--low);border-bottom:1px solid var(--line);padding:8px 20px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:10;flex-wrap:wrap}
+  .wordmark{font-weight:800;font-size:14px;letter-spacing:.12em}
+  .badge{font-size:10px;font-weight:700;padding:1px 7px;border-radius:9999px;background:#c0c1ff18;color:var(--primary);border:1px solid #c0c1ff40}
+  .wrap{max-width:1080px;margin:0 auto;padding:32px 20px 64px}
+  h1{font-size:26px;font-weight:800;margin-bottom:8px}
+  p.sub{color:var(--variant);font-size:14px;line-height:1.7;max-width:760px;margin-bottom:24px}
+  .tokens{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:28px}
+  .tok{display:flex;align-items:center;gap:6px;font-size:11px;font-family:monospace;color:var(--variant);background:var(--low);border:1px solid var(--line);border-radius:6px;padding:4px 8px}
+  .dot{width:10px;height:10px;border-radius:3px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px}
+  .card{background:var(--low);border:1px solid var(--line);border-radius:10px;padding:20px}
+  .card h2{font-size:14px;margin-bottom:4px}
+  .card p{font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:16px;min-height:57px}
+  .rec{font-size:10px;font-weight:700;color:#0d0d15;background:var(--primary);border-radius:4px;padding:2px 6px;margin-left:8px;vertical-align:middle}
+  .sizes{display:flex;align-items:flex-end;gap:18px;background:var(--lowest);border:1px solid var(--line);border-radius:8px;padding:16px;margin-bottom:14px}
+  .s{text-align:center}
+  .s span{display:block;font-size:10px;color:var(--muted);margin-top:6px;font-family:monospace}
+  .s img{image-rendering:auto;background:#00000030;border-radius:4px}
+  .fav16 img{width:16px;height:16px}.fav32 img{width:32px;height:32px}.fav64 img{width:64px;height:64px}
+  .hero{display:flex;align-items:center;gap:14px}
+  .hero img{width:72px;height:72px}
+  .hero .t b{display:block;font-size:12px;letter-spacing:.1em}
+  .hero .t small{color:var(--muted);font-size:11px}
+  .tabrow{display:flex;gap:4px;margin-top:14px;background:var(--lowest);border-radius:8px;padding:10px;align-items:center}
+  .tabrow img{border-radius:4px}
+  code{font-family:monospace;font-size:11px;color:var(--secondary)}
+</style>
+</head>
+<body>
+
+<header class="mock" id="mock-header">
+  <img id="mock-icon" src="./ecdat-v1-aegis-node.svg" width="20" height="20" alt="ECDAT" />
+  <span class="wordmark">ECDAT</span>
+  <span class="badge">v1.1-pqc</span>
+  <span style="margin-left:auto;font-size:12px;color:var(--muted)">mock header — click a card below to swap the icon</span>
+</header>
+
+<div class="wrap">
+  <h1>ECDAT — Favicon / Brand Mark</h1>
+  <p class="sub">
+    Four compact geometric symbols in the ECDAT language: near-black navy
+    <code>#0D0D15</code>, lavender/indigo <code>#C0C1FF</code>, cool white
+    <code>#E4E1ED</code>, cyan circuit <code>#4CD7F6</code>, signal green
+    <code>#68D391</code>. Shield = protection · vertical key/circuit = cryptographic
+    analysis · nodes/diamond = quantum network. Flat vector, symmetrical, no text, no padlock.
+  </p>
+
+  <div class="tokens">
+    <span class="tok"><span class="dot" style="background:#0D0D15;border:1px solid #464554"></span>#0D0D15 bg</span>
+    <span class="tok"><span class="dot" style="background:#C0C1FF"></span>#C0C1FF primary</span>
+    <span class="tok"><span class="dot" style="background:#E4E1ED"></span>#E4E1ED white</span>
+    <span class="tok"><span class="dot" style="background:#4CD7F6"></span>#4CD7F6 circuit</span>
+    <span class="tok"><span class="dot" style="background:#68D391"></span>#68D391 signal</span>
+    <span class="tok"><span class="dot" style="background:#464554"></span>#464554 line</span>
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <h2>V1 — Aegis Node <span class="rec">RECOMMENDED</span></h2>
+      <p>Open shield outline + vertical key spine + cyan circuit arms + green root-of-trust dot. Most legible at 16px, most “DevSecOps infrastructure”.</p>
+      <div class="sizes"><div class="s fav16"><img src="./ecdat-v1-aegis-node.svg"/><span>16</span></div><div class="s fav32"><img src="./ecdat-v1-aegis-node.svg"/><span>32</span></div><div class="s fav64"><img src="./ecdat-v1-aegis-node.svg"/><span>64</span></div></div>
+      <div class="hero"><img src="./ecdat-v1-aegis-node.svg"/><div class="t"><b>ECDAT</b><small>app / brand mark · 72px</small><br/><small><code>ecdat-v1-aegis-node.svg</code></small></div></div>
+      <div class="tabrow"><img src="./ecdat-v1-aegis-node.svg" width="16" height="16"/><span style="font-size:12px;color:var(--variant)">ECDAT — Enterprise Cryptographic Discovery…</span><button data-src="./ecdat-v1-aegis-node.svg" style="margin-left:auto">Try in header ↑</button></div>
+    </div>
+
+    <div class="card">
+      <h2>V2 — Cipher Block</h2>
+      <p>Solid lavender shield silhouette with negative-space key slot. Maximum punch as a browser tab favicon; reads as a single glyph at 16×16.</p>
+      <div class="sizes"><div class="s fav16"><img src="./ecdat-v2-cipher-block.svg"/><span>16</span></div><div class="s fav32"><img src="./ecdat-v2-cipher-block.svg"/><span>32</span></div><div class="s fav64"><img src="./ecdat-v2-cipher-block.svg"/><span>64</span></div></div>
+      <div class="hero"><img src="./ecdat-v2-cipher-block.svg"/><div class="t"><b>ECDAT</b><small>app / brand mark · 72px</small><br/><small><code>ecdat-v2-cipher-block.svg</code></small></div></div>
+      <div class="tabrow"><img src="./ecdat-v2-cipher-block.svg" width="16" height="16"/><span style="font-size:12px;color:var(--variant)">ECDAT — Enterprise Cryptographic Discovery…</span><button data-src="./ecdat-v2-cipher-block.svg" style="margin-left:auto">Try in header ↑</button></div>
+    </div>
+
+    <div class="card">
+      <h2>V3 — PQC Split</h2>
+      <p>Shield split into lavender (classical) + white (post-quantum) halves around a cyan quantum diamond. The NIST/PQC migration story.</p>
+      <div class="sizes"><div class="s fav16"><img src="./ecdat-v3-pqc-split.svg"/><span>16</span></div><div class="s fav32"><img src="./ecdat-v3-pqc-split.svg"/><span>32</span></div><div class="s fav64"><img src="./ecdat-v3-pqc-split.svg"/><span>64</span></div></div>
+      <div class="hero"><img src="./ecdat-v3-pqc-split.svg"/><div class="t"><b>ECDAT</b><small>app / brand mark · 72px</small><br/><small><code>ecdat-v3-pqc-split.svg</code></small></div></div>
+      <div class="tabrow"><img src="./ecdat-v3-pqc-split.svg" width="16" height="16"/><span style="font-size:12px;color:var(--variant)">ECDAT — Enterprise Cryptographic Discovery…</span><button data-src="./ecdat-v3-pqc-split.svg" style="margin-left:auto">Try in header ↑</button></div>
+    </div>
+
+    <div class="card">
+      <h2>V4 — Node Constellation</h2>
+      <p>Shield perimeter drawn purely as connected quantum nodes around an encrypted-key core. Most abstract / research-grade; best at ≥32px.</p>
+      <div class="sizes"><div class="s fav16"><img src="./ecdat-v4-node-constellation.svg"/><span>16</span></div><div class="s fav32"><img src="./ecdat-v4-node-constellation.svg"/><span>32</span></div><div class="s fav64"><img src="./ecdat-v4-node-constellation.svg"/><span>64</span></div></div>
+      <div class="hero"><img src="./ecdat-v4-node-constellation.svg"/><div class="t"><b>ECDAT</b><small>app / brand mark · 72px</small><br/><small><code>ecdat-v4-node-constellation.svg</code></small></div></div>
+      <div class="tabrow"><img src="./ecdat-v4-node-constellation.svg" width="16" height="16"/><span style="font-size:12px;color:var(--variant)">ECDAT — Enterprise Cryptographic Discovery…</span><button data-src="./ecdat-v4-node-constellation.svg" style="margin-left:auto">Try in header ↑</button></div>
+    </div>
+  </div>
+
+  <p class="sub" style="margin-top:24px">To adopt: copy the chosen file over <code>frontend/public/favicon.svg</code> (keep a backup). All four are 64×64 viewBox, scale cleanly to 16 / 32 / 180, flat vector with no gradients.</p>
+</div>
+
+<script>
+  document.querySelectorAll('button[data-src]').forEach(b => b.addEventListener('click', () => {
+    document.getElementById('mock-icon').src = b.dataset.src;
+    document.getElementById('mock-header').scrollIntoView({behavior:'smooth'});
+  }));
+</script>
+</body>
+</html>
