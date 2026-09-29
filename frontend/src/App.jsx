@@ -517,7 +517,7 @@ export default function App() {
       >
         {/* Logo */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginRight: 16, flexShrink: 0 }}>
-          <Shield size={15} color={DS.primary} strokeWidth={1.8} />
+          <img src="/favicon.svg" alt="ECDAT" width={20} height={20} style={{ borderRadius: 5, display: 'block' }} />
           <span style={{ fontWeight: 800, fontSize: 13, letterSpacing: '0.12em', textTransform: 'uppercase', color: DS.onSurface }}>
             ECDAT
           </span>

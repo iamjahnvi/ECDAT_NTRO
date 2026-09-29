@@ -586,7 +586,7 @@ export default function LandingPage({ onScanComplete, onNavigate, onDocumentatio
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <HomeMenu onNavigate={onNavigate} />
-          <Shield size={17} color={DS.primary} strokeWidth={1.8} />
+          <img src="/favicon.svg" alt="ECDAT" width={22} height={22} style={{ borderRadius: 6, display: 'block' }} />
           <span style={{ fontWeight: 800, fontSize: 14, letterSpacing: '0.12em', textTransform: 'uppercase', color: DS.onSurface }}>ECDAT</span>
           <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 7px', borderRadius: 9999, background: `${DS.primary}18`, color: DS.primary, border: `1px solid ${DS.primary}40`, lineHeight: '18px' }}>
             v1.1-pqc
